@@ -369,23 +369,6 @@
           <input type="text" id="agentName" placeholder="My Agent">
         </div>
         
-        <div class="form-group">
-          <label>Project</label>
-          <div id="projectSection">
-            <select id="projectSelect" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
-              <option value="">Select a project...</option>
-            </select>
-            <div id="newProjectForm" class="hidden" style="margin-top: 12px; padding: 16px; background: #f9fafb; border-radius: 6px;">
-              <input type="text" id="newProjectName" placeholder="Project name" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; margin-bottom: 8px;">
-              <div style="display: flex; gap: 8px;">
-                <button class="btn" onclick="saveProject()">Create</button>
-                <button class="btn btn-secondary" onclick="cancelNewProject()">Cancel</button>
-              </div>
-            </div>
-            <button class="btn btn-secondary" id="newProjectBtn" onclick="showNewProjectForm()" style="margin-top: 8px;">+ New Project</button>
-          </div>
-        </div>
-        
         <h3 style="margin: 24px 0 16px;">Tools</h3>
         <div id="toolsList"></div>
         
@@ -500,14 +483,23 @@
           body: JSON.stringify({ name, owner_email: email })
         });
         
+        if (!res.ok) {
+          const error = await res.text();
+          throw new Error(error);
+        }
+        
         const data = await res.json();
-        showToast(`Workspace created! Copy your API key now.`, 'success');
+        
+        if (!data.api_key) {
+          throw new Error('No API key returned from server');
+        }
         
         // Show the API key and switch to login
         document.getElementById('apiKeyInput').value = data.api_key;
         showLoginForm();
+        showToast(`Workspace created! Your API key has been filled in. Click Continue to login.`, 'success');
       } catch (err) {
-        showToast('Error: ' + err.message);
+        showToast('Error creating workspace: ' + err.message);
       }
     }
     
@@ -631,63 +623,6 @@
       document.getElementById('agentBuilder').classList.remove('hidden');
       tools = [];
       renderTools();
-      loadProjects();
-    }
-    
-    async function loadProjects() {
-      try {
-        const res = await fetch(`${API_URL}/v1/projects`, {
-          headers: { 'Authorization': `Bearer ${apiKey}` }
-        });
-        const projects = await res.json();
-        
-        const select = document.getElementById('projectSelect');
-        select.innerHTML = '<option value="">Select a project...</option>' + 
-          projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
-      } catch (err) {
-        showToast('Error loading projects: ' + err.message);
-      }
-    }
-    
-    function showNewProjectForm() {
-      document.getElementById('newProjectForm').classList.remove('hidden');
-      document.getElementById('newProjectBtn').classList.add('hidden');
-      document.getElementById('newProjectName').focus();
-    }
-    
-    function cancelNewProject() {
-      document.getElementById('newProjectForm').classList.add('hidden');
-      document.getElementById('newProjectBtn').classList.remove('hidden');
-      document.getElementById('newProjectName').value = '';
-    }
-    
-    async function saveProject() {
-      const name = document.getElementById('newProjectName').value;
-      if (!name) return showToast('Name required');
-      
-      try {
-        const res = await fetch(`${API_URL}/v1/projects`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({ 
-            workspace_id: currentWorkspace.workspace_id, 
-            name 
-          })
-        });
-        
-        if (!res.ok) throw new Error(await res.text());
-        
-        const project = await res.json();
-        showToast('Project created!', 'success');
-        await loadProjects();
-        document.getElementById('projectSelect').value = project.project_id;
-        cancelNewProject();
-      } catch (err) {
-        showToast('Error: ' + err.message);
-      }
     }
     
     function addTool() {
@@ -741,19 +676,26 @@
     
     async function createAgent() {
       const name = document.getElementById('agentName').value;
-      const projectId = document.getElementById('projectSelect').value;
       
-      if (!name || !projectId) return showToast('Name and Project required');
+      if (!name) return showToast('Agent name required');
       if (tools.length === 0) return showToast('Add at least one tool');
       
       try {
+        // Get workspace's default project
+        const projectsRes = await fetch(`${API_URL}/v1/projects`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        const projects = await projectsRes.json();
+        
+        if (projects.length === 0) return showToast('No project found');
+        
         const res = await fetch(`${API_URL}/v1/agents`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
           },
-          body: JSON.stringify({ name, project_id: projectId, steps: tools })
+          body: JSON.stringify({ name, project_id: projects[0].project_id, steps: tools })
         });
         
         if (!res.ok) throw new Error(await res.text());
@@ -762,7 +704,6 @@
         
         // Clear form
         document.getElementById('agentName').value = '';
-        document.getElementById('projectSelect').value = '';
         tools = [];
         renderTools();
         

@@ -48,6 +48,12 @@ app.post("/v1/workspaces", async (req, res) => {
   const ws = { workspace_id, name, owner_email, api_key, plan: 'free', runs_this_month: 0, created_at: new Date().toISOString() };
   
   await data.createWorkspace(ws);
+  
+  // Create default project
+  const project_id = "prj_" + uuidv4();
+  const project = { project_id, workspace_id, name: "Default Project", created_at: new Date().toISOString() };
+  await data.createProject(project);
+  
   res.json({ workspace_id, api_key });
 });
 
