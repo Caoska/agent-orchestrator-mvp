@@ -15,6 +15,39 @@ dotenv.config();
 await initDb();
 
 const app = express();
+
+// Stripe webhook needs raw body
+app.post("/v1/webhooks/stripe", express.raw({ type: 'application/json' }), async (req, res) => {
+  const { stripe } = await import('./lib/stripe.js');
+  const sig = req.headers['stripe-signature'];
+  
+  try {
+    const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      await data.updateWorkspace(session.metadata.workspace_id, {
+        plan: session.metadata.plan,
+        stripe_customer_id: session.customer,
+        stripe_subscription_id: session.subscription
+      });
+    }
+    
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
+      const workspace = await data.getWorkspaceByStripeCustomer(subscription.customer);
+      if (workspace) {
+        await data.updateWorkspace(workspace.workspace_id, { plan: 'free' });
+      }
+    }
+    
+    res.json({ received: true });
+  } catch (err) {
+    console.error('Webhook error:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
@@ -351,36 +384,6 @@ app.post("/v1/billing-portal", requireApiKey, requireWorkspace, async (req, res)
     res.json({ url: session.url });
   } catch (err) {
     res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/v1/webhooks/stripe", express.raw({ type: 'application/json' }), async (req, res) => {
-  const { stripe } = await import('./lib/stripe.js');
-  const sig = req.headers['stripe-signature'];
-  
-  try {
-    const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      await data.updateWorkspace(session.metadata.workspace_id, {
-        plan: session.metadata.plan,
-        stripe_customer_id: session.customer,
-        stripe_subscription_id: session.subscription
-      });
-    }
-    
-    if (event.type === 'customer.subscription.deleted') {
-      const subscription = event.data.object;
-      const workspace = await data.getWorkspaceByStripeCustomer(subscription.customer);
-      if (workspace) {
-        await data.updateWorkspace(workspace.workspace_id, { plan: 'free' });
-      }
-    }
-    
-    res.json({ received: true });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
   }
 });
 
