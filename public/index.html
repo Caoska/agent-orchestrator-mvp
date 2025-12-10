@@ -385,8 +385,11 @@
           <input type="text" id="agentName" placeholder="My Agent">
         </div>
         
-        <div style="margin: 16px 0;">
-          <button class="btn btn-secondary" onclick="showTemplates()">📋 Use Template</button>
+        <div style="margin: 16px 0; padding: 12px; background: #f9fafb; border-radius: 6px;">
+          <label style="display: block; margin-bottom: 8px; font-size: 14px;">Add from Template</label>
+          <select id="templateSelect" onchange="loadTemplate(this.value)" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <option value="">Choose a template...</option>
+          </select>
         </div>
         
         <h3 style="margin: 24px 0 16px;">Tools</h3>
@@ -663,38 +666,37 @@
       document.getElementById('agentBuilder').classList.remove('hidden');
       tools = [];
       renderTools();
+      loadTemplateList();
     }
     
-    async function showTemplates() {
+    async function loadTemplateList() {
       try {
         const res = await fetch(`${API_URL}/v1/templates`);
         const templates = await res.json();
         
-        const html = templates.map(t => `
-          <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 8px; cursor: pointer;" onclick="loadTemplate('${t.id}')">
-            <div style="font-weight: 500;">${t.name}</div>
-            <div style="font-size: 12px; color: #666;">${t.description}</div>
-          </div>
-        `).join('');
-        
-        if (confirm('Choose a template:\n\n' + templates.map((t, i) => `${i+1}. ${t.name}`).join('\n'))) {
-          const idx = parseInt(prompt('Enter template number:')) - 1;
-          if (templates[idx]) loadTemplate(templates[idx].id);
-        }
+        const select = document.getElementById('templateSelect');
+        select.innerHTML = '<option value="">Choose a template...</option>' + 
+          templates.map(t => `<option value="${t.id}">${t.name} - ${t.description}</option>`).join('');
       } catch (err) {
         showToast('Error loading templates: ' + err.message);
       }
     }
     
     async function loadTemplate(id) {
+      if (!id) return;
+      
       try {
         const res = await fetch(`${API_URL}/v1/templates/${id}`);
         const template = await res.json();
         
-        document.getElementById('agentName').value = template.name;
-        tools = template.steps;
+        // Append template steps to existing tools
+        tools.push(...template.steps);
         renderTools();
-        showToast('Template loaded!', 'success');
+        
+        // Reset dropdown
+        document.getElementById('templateSelect').value = '';
+        
+        showToast(`Added ${template.steps.length} steps from "${template.name}"`, 'success');
       } catch (err) {
         showToast('Error: ' + err.message);
       }
