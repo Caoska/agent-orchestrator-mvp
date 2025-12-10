@@ -1,0 +1,147 @@
+openapi: 3.0.3
+info:
+title: Agent Orchestrator API (MVP)
+description: Minimal API spec for agent orchestrator MVP
+version: 0.1.0
+servers:
+- url: https://api.example.com
+paths:
+/v1/workspaces:
+post:
+summary: Create workspace
+requestBody:
+required: true
+content:
+application/json:
+schema:
+type: object
+properties:
+name:
+type: string
+owner_email:
+type: string
+responses:
+'200':
+description: workspace created
+content:
+application/json:
+schema:
+type: object
+properties:
+workspace_id: { type: string }
+api_key: { type: string }
+/v1/projects:
+post:
+summary: Create project in workspace
+security:
+- ApiKeyAuth: []
+requestBody:
+content:
+application/json:
+schema:
+type: object
+properties:
+workspace_id: { type: string }
+name: { type: string }
+responses:
+'200':
+description: created
+/v1/tools:
+post:
+summary: Register a tool (smtp/http)
+security:
+- ApiKeyAuth: []
+requestBody:
+content:
+application/json:
+schema:
+type: object
+properties:
+project_id: { type: string }
+type: { type: string }
+name: { type: string }
+config: { type: object }
+responses:
+'200':
+description: created
+content:
+application/json:
+schema:
+type: object
+properties:
+tool_id: { type: string }
+/v1/agents:
+post:
+summary: Create agent template
+security:
+- ApiKeyAuth: []
+requestBody:
+content:
+application/json:
+schema:
+type: object
+properties:
+project_id: { type: string }
+name: { type: string }
+steps:
+type: array
+items: { type: object }
+responses:
+'200':
+description: created
+content:
+application/json:
+schema:
+type: object
+properties:
+agent_id: { type: string }
+/v1/runs:
+post:
+summary: Start a run
+security:
+- ApiKeyAuth: []
+requestBody:
+content:
+application/json:
+schema:
+type: object
+properties:
+agent_id: { type: string }
+project_id: { type: string }
+input: { type: object }
+run_async: { type: boolean, default: true }
+webhook: { type: string }
+responses:
+'200':
+description: queued
+content:
+application/json:
+schema:
+type: object
+properties:
+run_id: { type: string }
+status: { type: string }
+/v1/runs/{run_id}:
+get:
+summary: Get run status
+security:
+- ApiKeyAuth: []
+parameters:
+- name: run_id
+in: path
+required: true
+schema:
+type: string
+responses:
+'200':
+description: run status
+content:
+application/json:
+schema:
+type: object
+components:
+securitySchemes:
+ApiKeyAuth:
+type: apiKey
+in: header
+name: Authorization

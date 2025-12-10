@@ -1,0 +1,14 @@
+{
+"name": "agent-orchestrator-mvp",
+"services": [
+{
+"name": "web",
+"startCommand": "node server.js",
+"env": {
+"REDIS_URL": "$REDIS_URL",
+"DATABASE_URL": "$DATABASE_URL",
+"PORT": "4000"
+}
+}
+]
+}
