@@ -723,6 +723,7 @@
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn" onclick="runAgent('${agent.agent_id}', '${agent.project_id}')">▶ Run</button>
+            <button class="btn btn-secondary" onclick="editAgent('${agent.agent_id}')">✏️ Edit</button>
             <button class="btn btn-secondary" onclick="cloneAgent('${agent.agent_id}')">📋 Clone</button>
             <button class="btn btn-secondary" onclick="deleteAgent('${agent.agent_id}')" style="background: #ef4444;">Delete</button>
           </div>
@@ -764,6 +765,33 @@
         renderTools();
         
         showToast('Agent cloned! Edit and save.', 'success');
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+    
+    async function editAgent(agentId) {
+      try {
+        const res = await fetch(`${API_URL}/v1/agents/${agentId}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        const agent = await res.json();
+        
+        // Open agent builder with existing data
+        showAgentBuilder();
+        document.getElementById('agentName').value = agent.name;
+        document.getElementById('maxRetries').value = agent.retry_policy?.max_attempts || 3;
+        document.getElementById('timeoutSeconds').value = agent.timeout_seconds || 300;
+        tools = JSON.parse(JSON.stringify(agent.steps));
+        renderTools();
+        
+        // Store agent ID for update
+        window.editingAgentId = agentId;
+        
+        // Change button text
+        document.querySelector('#agentBuilder button[onclick="createAgent()"]').textContent = 'Update Agent';
+        
+        showToast('Editing agent', 'success');
       } catch (err) {
         showToast('Error: ' + err.message);
       }
@@ -898,32 +926,56 @@
       if (tools.length === 0) return showToast('Add at least one tool');
       
       try {
-        // Get workspace's default project
-        const projectsRes = await fetch(`${API_URL}/v1/projects`, {
-          headers: { 'Authorization': `Bearer ${apiKey}` }
-        });
-        const projects = await projectsRes.json();
+        const isEditing = window.editingAgentId;
         
-        if (projects.length === 0) return showToast('No project found');
-        
-        const res = await fetch(`${API_URL}/v1/agents`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({ 
-            name, 
-            project_id: projects[0].project_id, 
-            steps: tools,
-            retry_policy: { max_attempts: maxRetries, backoff: 'exponential' },
-            timeout_seconds: timeoutSeconds
-          })
-        });
-        
-        if (!res.ok) throw new Error(await res.text());
-        
-        showToast('Agent created!', 'success');
+        if (isEditing) {
+          // Update existing agent
+          const res = await fetch(`${API_URL}/v1/agents/${window.editingAgentId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({ 
+              name, 
+              steps: tools,
+              retry_policy: { max_attempts: maxRetries, backoff: 'exponential' },
+              timeout_seconds: timeoutSeconds
+            })
+          });
+          
+          if (!res.ok) throw new Error(await res.text());
+          
+          showToast('Agent updated!', 'success');
+          window.editingAgentId = null;
+        } else {
+          // Create new agent
+          const projectsRes = await fetch(`${API_URL}/v1/projects`, {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+          });
+          const projects = await projectsRes.json();
+          
+          if (projects.length === 0) return showToast('No project found');
+          
+          const res = await fetch(`${API_URL}/v1/agents`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({ 
+              name, 
+              project_id: projects[0].project_id, 
+              steps: tools,
+              retry_policy: { max_attempts: maxRetries, backoff: 'exponential' },
+              timeout_seconds: timeoutSeconds
+            })
+          });
+          
+          if (!res.ok) throw new Error(await res.text());
+          
+          showToast('Agent created!', 'success');
+        }
         
         // Clear form
         document.getElementById('agentName').value = '';

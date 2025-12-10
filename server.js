@@ -239,6 +239,20 @@ app.get("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
   res.json(agent);
 });
 
+app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
+  const { name, steps, retry_policy, timeout_seconds } = req.body;
+  const agent = await data.getAgent(req.params.id);
+  if (!agent) return res.status(404).json({ error: "not found" });
+  
+  const project = await data.getProject(agent.project_id);
+  if (!project || project.workspace_id !== req.workspace.workspace_id) {
+    return res.status(403).json({ error: "access denied" });
+  }
+  
+  await data.updateAgent(req.params.id, { name, steps, retry_policy, timeout_seconds });
+  res.json({ updated: true });
+});
+
 app.post("/v1/runs", requireApiKey, requireWorkspace, rateLimit(60000, 100), async (req, res) => {
   const { agent_id, project_id, input = {}, run_async = true, webhook } = req.body;
   const agent = await data.getAgent(agent_id);
