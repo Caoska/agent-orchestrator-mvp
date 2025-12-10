@@ -89,6 +89,9 @@ const worker = new Worker(
     
     const context = { ...run.input };
     const stepLogs = [];
+    let httpCalls = 0;
+    let webhooks = 0;
+    const runStart = Date.now();
     
     try {
       for (let i = 0; i < agent.steps.length; i++) {
@@ -96,6 +99,10 @@ const worker = new Worker(
         const stepStart = Date.now();
         
         console.log(`Executing step ${i}: ${step.type}`);
+        
+        // Track usage
+        if (step.type === 'http') httpCalls++;
+        if (step.type === 'webhook') webhooks++;
         
         try {
           const result = await executeStep(step, context);
@@ -130,9 +137,23 @@ const worker = new Worker(
         }
       }
       
+      const executionSeconds = Math.ceil((Date.now() - runStart) / 1000);
+      
       run.status = "completed";
       run.completed_at = new Date().toISOString();
       run.results = { steps: stepLogs };
+      
+      // Update workspace usage metrics
+      const projectData = await connection.get(`project:${run.project_id}`);
+      if (projectData) {
+        const project = JSON.parse(projectData);
+        await data.incrementUsage(project.workspace_id, {
+          steps: stepLogs.length,
+          http_calls: httpCalls,
+          webhooks: webhooks,
+          execution_seconds: executionSeconds
+        });
+      }
       
       // Save to both Redis and DB
       await connection.set(`run:${actualRunId}`, JSON.stringify(run));

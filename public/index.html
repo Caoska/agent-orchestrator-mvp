@@ -277,12 +277,20 @@
           <div class="stat-label">Total Runs</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value" id="scheduleCount">0</div>
-          <div class="stat-label">Schedules</div>
-        </div>
-        <div class="stat-card">
           <div class="stat-value" id="runsThisMonth">0</div>
           <div class="stat-label">Runs This Month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stepsThisMonth">0</div>
+          <div class="stat-label">Steps This Month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="httpCallsThisMonth">0</div>
+          <div class="stat-label">HTTP Calls</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="executionHours">0</div>
+          <div class="stat-label">Execution Hours</div>
         </div>
       </div>
       
@@ -566,8 +574,10 @@
         
         document.getElementById('agentCount').textContent = agents.length;
         document.getElementById('runCount').textContent = runs.length;
-        document.getElementById('scheduleCount').textContent = schedules.schedules?.length || 0;
         document.getElementById('runsThisMonth').textContent = currentWorkspace?.runs_this_month || 0;
+        document.getElementById('stepsThisMonth').textContent = currentWorkspace?.steps_this_month || 0;
+        document.getElementById('httpCallsThisMonth').textContent = currentWorkspace?.http_calls_this_month || 0;
+        document.getElementById('executionHours').textContent = ((currentWorkspace?.execution_seconds_this_month || 0) / 3600).toFixed(2);
         document.getElementById('workspacePlan').textContent = currentWorkspace?.plan || 'free';
         
         renderAgentsList(agents);
