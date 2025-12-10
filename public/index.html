@@ -772,7 +772,8 @@
         conditional: { condition: '{{step0.status}} === 200', true_branch: [], false_branch: [] },
         transform: { operation: 'extract', path: '$.data', output_key: 'result' },
         database: { connection_string: 'postgresql://user:pass@host:5432/db', query: 'SELECT * FROM users LIMIT 10' },
-        smtp: { host: 'smtp.gmail.com', port: 587, from: 'you@example.com', to: 'recipient@example.com', subject: 'Test', body: 'Hello!' }
+        smtp: { host: 'smtp.gmail.com', port: 587, from: 'you@example.com', to: 'recipient@example.com', subject: 'Test', body: 'Hello!' },
+        llm: { prompt: 'Summarize this: {{step0.data}}', model: 'gpt-4o-mini', temperature: 0.7, max_tokens: 1000 }
       };
       return templates[type] || {};
     }
@@ -800,6 +801,7 @@
               <option value="transform" ${tool.type === 'transform' ? 'selected' : ''}>Transform</option>
               <option value="database" ${tool.type === 'database' ? 'selected' : ''}>Database</option>
               <option value="smtp" ${tool.type === 'smtp' ? 'selected' : ''}>SMTP</option>
+              <option value="llm" ${tool.type === 'llm' ? 'selected' : ''}>LLM</option>
             </select>
             <button onclick="removeTool(${i})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">Remove</button>
           </div>
