@@ -220,14 +220,31 @@
   <!-- Login Screen -->
   <div id="loginScreen" class="login-form">
     <h1 style="margin-bottom: 24px;">Agent Orchestrator</h1>
-    <div class="form-group">
-      <label>API Key</label>
-      <input type="password" id="apiKeyInput" placeholder="sk_test_...">
+    <div id="loginView">
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="password" id="apiKeyInput" placeholder="sk_test_...">
+      </div>
+      <button class="btn" style="width: 100%;" onclick="login()">Continue</button>
+      <p style="margin-top: 16px; text-align: center; font-size: 14px; color: #666;">
+        Don't have an API key? <a href="#" onclick="showCreateWorkspaceForm(); return false;" style="color: #2563eb;">Create workspace</a>
+      </p>
     </div>
-    <button class="btn" style="width: 100%;" onclick="login()">Continue</button>
-    <p style="margin-top: 16px; text-align: center; font-size: 14px; color: #666;">
-      Don't have an API key? <a href="#" onclick="showCreateWorkspace(); return false;" style="color: #2563eb;">Create workspace</a>
-    </p>
+    
+    <div id="createWorkspaceView" class="hidden">
+      <div class="form-group">
+        <label>Workspace Name</label>
+        <input type="text" id="workspaceName" placeholder="My Workspace">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="workspaceEmail" placeholder="you@example.com">
+      </div>
+      <button class="btn" style="width: 100%;" onclick="createWorkspaceFromForm()">Create Workspace</button>
+      <p style="margin-top: 16px; text-align: center; font-size: 14px; color: #666;">
+        <a href="#" onclick="showLoginForm(); return false;" style="color: #2563eb;">← Back to login</a>
+      </p>
+    </div>
   </div>
 
   <!-- Dashboard -->
@@ -460,9 +477,38 @@
       loadDashboard();
     }
     
-    function showCreateWorkspace() {
-      // Keep this simple - just show a toast directing to create via API
-      showToast('Create workspace via API: POST /v1/workspaces with {name, owner_email}');
+    function showLoginForm() {
+      document.getElementById('loginView').classList.remove('hidden');
+      document.getElementById('createWorkspaceView').classList.add('hidden');
+    }
+    
+    function showCreateWorkspaceForm() {
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('createWorkspaceView').classList.remove('hidden');
+    }
+    
+    async function createWorkspaceFromForm() {
+      const name = document.getElementById('workspaceName').value;
+      const email = document.getElementById('workspaceEmail').value;
+      
+      if (!name) return showToast('Workspace name required');
+      
+      try {
+        const res = await fetch(`${API_URL}/v1/workspaces`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, owner_email: email })
+        });
+        
+        const data = await res.json();
+        showToast(`Workspace created! Copy your API key now.`, 'success');
+        
+        // Show the API key and switch to login
+        document.getElementById('apiKeyInput').value = data.api_key;
+        showLoginForm();
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
     }
     
     async function loadDashboard() {
