@@ -6,8 +6,11 @@ import IORedis from "ioredis";
 import dotenv from "dotenv";
 import { renderTemplate } from "./lib/templating.js";
 import { WORKSPACES, PROJECTS, TOOLS, AGENTS, RUNS } from "./lib/store.js";
+import { getDb, initDb } from "./lib/db.js";
 
 dotenv.config();
+
+await initDb();
 
 const app = express();
 app.use(bodyParser.json());
@@ -15,25 +18,32 @@ app.use(bodyParser.json());
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const QUEUE_NAME = process.env.QUEUE_NAME || "runs";
 const PORT = process.env.PORT || 4000;
+const db = getDb();
 
 function requireApiKey(req, res, next) {
   const h = req.headers["authorization"];
   if (!h || !h.startsWith("Bearer ")) return res.status(401).json({ error: "missing api key" });
   
   const apiKey = h.slice(7);
-  
-  // Find workspace by API key
-  let workspace = null;
-  for (const ws of WORKSPACES.values()) {
-    if (ws.api_key === apiKey) {
-      workspace = ws;
-      break;
-    }
+  req.apiKey = apiKey;
+  next();
+}
+
+async function getWorkspaceByApiKey(apiKey) {
+  if (db) {
+    const result = await db.query('SELECT * FROM workspaces WHERE api_key = $1', [apiKey]);
+    return result.rows[0] || null;
   }
   
+  for (const ws of WORKSPACES.values()) {
+    if (ws.api_key === apiKey) return ws;
+  }
+  return null;
+}
+
+async function requireWorkspace(req, res, next) {
+  const workspace = await getWorkspaceByApiKey(req.apiKey);
   if (!workspace) return res.status(401).json({ error: "invalid api key" });
-  
-  req.apiKey = apiKey;
   req.workspace = workspace;
   next();
 }
@@ -41,27 +51,45 @@ function requireApiKey(req, res, next) {
 const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 const runQueue = new Queue(QUEUE_NAME, { connection });
 
-app.post("/v1/workspaces", (req, res) => {
-const { name, owner_email } = req.body;
-if (!name) return res.status(400).json({ error: "missing name" });
-const workspace_id = "ws_" + uuidv4();
-const api_key = "sk_test_" + uuidv4();
-const ws = { workspace_id, name, owner_email, api_key, created_at: new Date().toISOString() };
-WORKSPACES.set(workspace_id, ws);
-res.json({ workspace_id, api_key });
+app.post("/v1/workspaces", async (req, res) => {
+  const { name, owner_email } = req.body;
+  if (!name) return res.status(400).json({ error: "missing name" });
+  
+  const workspace_id = "ws_" + uuidv4();
+  const api_key = "sk_test_" + uuidv4();
+  const ws = { workspace_id, name, owner_email, api_key, created_at: new Date().toISOString() };
+  
+  if (db) {
+    await db.query(
+      'INSERT INTO workspaces (workspace_id, name, owner_email, api_key) VALUES ($1, $2, $3, $4)',
+      [workspace_id, name, owner_email, api_key]
+    );
+  } else {
+    WORKSPACES.set(workspace_id, ws);
+  }
+  
+  res.json({ workspace_id, api_key });
 });
 
-app.post("/v1/projects", requireApiKey, (req, res) => {
+app.post("/v1/projects", requireApiKey, requireWorkspace, async (req, res) => {
   const { workspace_id, name } = req.body;
   
-  // Validate workspace belongs to API key
   if (workspace_id !== req.workspace.workspace_id) {
     return res.status(403).json({ error: "workspace access denied" });
   }
   
   const project_id = "prj_" + uuidv4();
   const p = { project_id, workspace_id, name, created_at: new Date().toISOString() };
-  PROJECTS.set(project_id, p);
+  
+  if (db) {
+    await db.query(
+      'INSERT INTO projects (project_id, workspace_id, name) VALUES ($1, $2, $3)',
+      [project_id, workspace_id, name]
+    );
+  } else {
+    PROJECTS.set(project_id, p);
+  }
+  
   res.json(p);
 });
 
