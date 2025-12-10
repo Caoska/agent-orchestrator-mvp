@@ -880,7 +880,7 @@
         transform: { operation: 'extract', path: '$.data', output_key: 'result' },
         database: { connection_string: 'postgresql://user:pass@host:5432/db', query: 'SELECT * FROM users LIMIT 10' },
         smtp: { host: 'smtp.gmail.com', port: 587, from: 'you@example.com', to: 'recipient@example.com', subject: 'Test', body: 'Hello!' },
-        llm: { prompt: 'Summarize this: {{step0.data}}', model: 'gpt-4o-mini', temperature: 0.7, max_tokens: 1000 }
+        llm: { prompt: 'Summarize this: {{step0.data}}', model: 'gpt-4o-mini', temperature: 0.7, max_tokens: 1000, api_key: '' }
       };
       return templates[type] || {};
     }
