@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from "uuid";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
 import dotenv from "dotenv";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { initDb, getDb } from "./lib/db.js";
 import * as data from "./lib/data.js";
 import { scheduleRun, removeSchedule, listSchedules } from "./lib/scheduler.js";
@@ -19,6 +21,7 @@ app.use(express.static('public'));
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const QUEUE_NAME = process.env.QUEUE_NAME || "runs";
 const PORT = process.env.PORT || 4000;
+const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
 
 function requireApiKey(req, res, next) {
   const h = req.headers["authorization"];
@@ -38,6 +41,55 @@ async function requireWorkspace(req, res, next) {
 
 const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 const runQueue = new Queue(QUEUE_NAME, { connection });
+
+// Auth endpoints
+app.post("/v1/auth/signup", async (req, res) => {
+  const { name, email, password } = req.body;
+  if (!name || !email || !password) return res.status(400).json({ error: "missing fields" });
+  
+  // Check if email exists
+  const existing = await data.getWorkspaceByEmail(email);
+  if (existing) return res.status(400).json({ error: "email already exists" });
+  
+  const workspace_id = "ws_" + uuidv4();
+  const api_key = "sk_test_" + uuidv4();
+  const password_hash = await bcrypt.hash(password, 10);
+  
+  const ws = { 
+    workspace_id, 
+    name, 
+    owner_email: email, 
+    api_key, 
+    password_hash,
+    plan: 'free', 
+    runs_this_month: 0, 
+    created_at: new Date().toISOString() 
+  };
+  
+  await data.createWorkspace(ws);
+  
+  // Create default project
+  const project_id = "prj_" + uuidv4();
+  const project = { project_id, workspace_id, name: "Default Project", created_at: new Date().toISOString() };
+  await data.createProject(project);
+  
+  const token = jwt.sign({ workspace_id, email }, JWT_SECRET, { expiresIn: '30d' });
+  res.json({ token, workspace_id, api_key });
+});
+
+app.post("/v1/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "missing fields" });
+  
+  const workspace = await data.getWorkspaceByEmail(email);
+  if (!workspace) return res.status(401).json({ error: "invalid credentials" });
+  
+  const valid = await bcrypt.compare(password, workspace.password_hash);
+  if (!valid) return res.status(401).json({ error: "invalid credentials" });
+  
+  const token = jwt.sign({ workspace_id: workspace.workspace_id, email }, JWT_SECRET, { expiresIn: '30d' });
+  res.json({ token, workspace_id: workspace.workspace_id, api_key: workspace.api_key });
+});
 
 app.post("/v1/workspaces", async (req, res) => {
   const { name, owner_email } = req.body;

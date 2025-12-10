@@ -30,7 +30,8 @@ async function migrate() {
         ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'free',
         ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255),
         ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS runs_this_month INTEGER DEFAULT 0;
+        ADD COLUMN IF NOT EXISTS runs_this_month INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
       `);
       
       // Projects table

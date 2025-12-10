@@ -222,25 +222,33 @@
     <h1 style="margin-bottom: 24px;">Agent Orchestrator</h1>
     <div id="loginView">
       <div class="form-group">
-        <label>API Key</label>
-        <input type="password" id="apiKeyInput" placeholder="sk_test_...">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com">
       </div>
-      <button class="btn" style="width: 100%;" onclick="login()">Continue</button>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••">
+      </div>
+      <button class="btn" style="width: 100%;" onclick="login()">Login</button>
       <p style="margin-top: 16px; text-align: center; font-size: 14px; color: #666;">
-        Don't have an API key? <a href="#" onclick="showCreateWorkspaceForm(); return false;" style="color: #2563eb;">Create workspace</a>
+        Don't have an account? <a href="#" onclick="showSignupForm(); return false;" style="color: #2563eb;">Sign up</a>
       </p>
     </div>
     
-    <div id="createWorkspaceView" class="hidden">
+    <div id="signupView" class="hidden">
       <div class="form-group">
         <label>Workspace Name</label>
-        <input type="text" id="workspaceName" placeholder="My Workspace">
+        <input type="text" id="signupName" placeholder="My Workspace">
       </div>
       <div class="form-group">
         <label>Email</label>
-        <input type="email" id="workspaceEmail" placeholder="you@example.com">
+        <input type="email" id="signupEmail" placeholder="you@example.com">
       </div>
-      <button class="btn" style="width: 100%;" onclick="createWorkspaceFromForm()">Create Workspace</button>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="signupPassword" placeholder="••••••••">
+      </div>
+      <button class="btn" style="width: 100%;" onclick="signup()">Create Account</button>
       <p style="margin-top: 16px; text-align: center; font-size: 14px; color: #666;">
         <a href="#" onclick="showLoginForm(); return false;" style="color: #2563eb;">← Back to login</a>
       </p>
@@ -453,53 +461,71 @@
       setTimeout(() => toast.remove(), 10000);
     }
     
-    function login() {
-      apiKey = document.getElementById('apiKeyInput').value;
-      if (!apiKey) return showToast('Please enter API key');
-      localStorage.setItem('apiKey', apiKey);
-      loadDashboard();
+    async function login() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      
+      if (!email || !password) return showToast('Email and password required');
+      
+      try {
+        const res = await fetch(`${API_URL}/v1/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || 'Login failed');
+        }
+        
+        const data = await res.json();
+        apiKey = data.api_key;
+        localStorage.setItem('apiKey', apiKey);
+        localStorage.setItem('token', data.token);
+        loadDashboard();
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
     }
     
     function showLoginForm() {
       document.getElementById('loginView').classList.remove('hidden');
-      document.getElementById('createWorkspaceView').classList.add('hidden');
+      document.getElementById('signupView').classList.add('hidden');
     }
     
-    function showCreateWorkspaceForm() {
+    function showSignupForm() {
       document.getElementById('loginView').classList.add('hidden');
-      document.getElementById('createWorkspaceView').classList.remove('hidden');
+      document.getElementById('signupView').classList.remove('hidden');
     }
     
-    async function createWorkspaceFromForm() {
-      const name = document.getElementById('workspaceName').value;
-      const email = document.getElementById('workspaceEmail').value;
+    async function signup() {
+      const name = document.getElementById('signupName').value;
+      const email = document.getElementById('signupEmail').value;
+      const password = document.getElementById('signupPassword').value;
       
-      if (!name) return showToast('Workspace name required');
+      if (!name || !email || !password) return showToast('All fields required');
       
       try {
-        const res = await fetch(`${API_URL}/v1/workspaces`, {
+        const res = await fetch(`${API_URL}/v1/auth/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, owner_email: email })
+          body: JSON.stringify({ name, email, password })
         });
         
         if (!res.ok) {
-          const error = await res.text();
-          throw new Error(error);
+          const error = await res.json();
+          throw new Error(error.error || 'Signup failed');
         }
         
         const data = await res.json();
-        
-        if (!data.api_key) {
-          throw new Error('No API key returned from server');
-        }
-        
-        // Show the API key and switch to login
-        document.getElementById('apiKeyInput').value = data.api_key;
-        showLoginForm();
-        showToast(`Workspace created! Your API key has been filled in. Click Continue to login.`, 'success');
+        apiKey = data.api_key;
+        localStorage.setItem('apiKey', apiKey);
+        localStorage.setItem('token', data.token);
+        showToast('Account created!', 'success');
+        loadDashboard();
       } catch (err) {
-        showToast('Error creating workspace: ' + err.message);
+        showToast('Error: ' + err.message);
       }
     }
     
