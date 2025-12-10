@@ -6,7 +6,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 async function migrate() {
   const client = await pool.connect();
   try {
-    // Create tables if they don't exist
+    // Workspaces table
     await client.query(`
       CREATE TABLE IF NOT EXISTS workspaces (
         workspace_id VARCHAR(255) PRIMARY KEY,
@@ -17,7 +17,6 @@ async function migrate() {
       );
     `);
     
-    // Add missing columns to workspaces
     await client.query(`
       ALTER TABLE workspaces 
       ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'free',
@@ -26,41 +25,59 @@ async function migrate() {
       ADD COLUMN IF NOT EXISTS runs_this_month INTEGER DEFAULT 0;
     `);
     
+    // Projects table
     await client.query(`
       CREATE TABLE IF NOT EXISTS projects (
         project_id VARCHAR(255) PRIMARY KEY,
-        workspace_id VARCHAR(255) REFERENCES workspaces(workspace_id) ON DELETE CASCADE,
+        workspace_id VARCHAR(255),
         name VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
     
+    await client.query(`
+      ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS workspace_id VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `);
+    
+    // Agents table
     await client.query(`
       CREATE TABLE IF NOT EXISTS agents (
         agent_id VARCHAR(255) PRIMARY KEY,
-        project_id VARCHAR(255) REFERENCES projects(project_id) ON DELETE CASCADE,
+        project_id VARCHAR(255),
         name VARCHAR(255) NOT NULL,
         steps JSONB NOT NULL,
-        retry_policy JSONB DEFAULT '{}',
-        timeout_seconds INTEGER DEFAULT 300,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
     
     await client.query(`
+      ALTER TABLE agents
+      ADD COLUMN IF NOT EXISTS retry_policy JSONB DEFAULT '{}',
+      ADD COLUMN IF NOT EXISTS timeout_seconds INTEGER DEFAULT 300;
+    `);
+    
+    // Runs table
+    await client.query(`
       CREATE TABLE IF NOT EXISTS runs (
         run_id VARCHAR(255) PRIMARY KEY,
-        agent_id VARCHAR(255) REFERENCES agents(agent_id) ON DELETE CASCADE,
-        project_id VARCHAR(255) REFERENCES projects(project_id) ON DELETE CASCADE,
-        input JSONB DEFAULT '{}',
-        webhook VARCHAR(500),
+        agent_id VARCHAR(255),
+        project_id VARCHAR(255),
         status VARCHAR(50) NOT NULL,
-        results JSONB,
-        error TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        started_at TIMESTAMP,
-        completed_at TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+    
+    await client.query(`
+      ALTER TABLE runs
+      ADD COLUMN IF NOT EXISTS input JSONB DEFAULT '{}',
+      ADD COLUMN IF NOT EXISTS webhook VARCHAR(500),
+      ADD COLUMN IF NOT EXISTS results JSONB,
+      ADD COLUMN IF NOT EXISTS error TEXT,
+      ADD COLUMN IF NOT EXISTS started_at TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
     `);
     
     console.log('✓ Database schema migrated');
