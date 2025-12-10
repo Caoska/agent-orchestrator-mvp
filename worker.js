@@ -88,42 +88,72 @@ const worker = new Worker(
     run.started_at = new Date().toISOString();
     
     const context = { ...run.input };
-    const results = [];
+    const stepLogs = [];
     
     try {
-      for (const step of agent.steps) {
-        console.log(`Executing step: ${step.name || step.type}`);
-        const result = await executeStep(step, context);
-        results.push({ step: step.name || step.type, result });
+      for (let i = 0; i < agent.steps.length; i++) {
+        const step = agent.steps[i];
+        const stepStart = Date.now();
         
-        // Update context with result
-        if (step.output_key) {
-          context[step.output_key] = result;
+        console.log(`Executing step ${i}: ${step.type}`);
+        
+        try {
+          const result = await executeStep(step, context);
+          const duration = Date.now() - stepStart;
+          
+          stepLogs.push({
+            step: i,
+            type: step.type,
+            status: "success",
+            duration_ms: duration,
+            output: result,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Update context with result
+          if (step.output_key) {
+            context[step.output_key] = result;
+          }
+        } catch (stepError) {
+          const duration = Date.now() - stepStart;
+          
+          stepLogs.push({
+            step: i,
+            type: step.type,
+            status: "failed",
+            duration_ms: duration,
+            error: stepError.message,
+            timestamp: new Date().toISOString()
+          });
+          
+          throw stepError;
         }
       }
       
       run.status = "completed";
       run.completed_at = new Date().toISOString();
-      run.results = results;
+      run.results = { steps: stepLogs };
       
       // Save to both Redis and DB
       await connection.set(`run:${actualRunId}`, JSON.stringify(run));
       await data.updateRun(actualRunId, {
         status: "completed",
         completed_at: run.completed_at,
-        results
+        results: run.results
       });
       
     } catch (error) {
       run.status = "failed";
       run.error = error.message;
       run.completed_at = new Date().toISOString();
+      run.results = { steps: stepLogs };
       
       await connection.set(`run:${actualRunId}`, JSON.stringify(run));
       await data.updateRun(actualRunId, {
         status: "failed",
         error: error.message,
-        completed_at: run.completed_at
+        completed_at: run.completed_at,
+        results: run.results
       });
       
       console.error("Run failed:", error);

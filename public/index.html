@@ -801,7 +801,29 @@
           : 'Running...';
         document.getElementById('detailDuration').textContent = duration;
         
-        document.getElementById('detailLog').textContent = JSON.stringify(run.results || run.result || {}, null, 2);
+        // Render step logs
+        const logContainer = document.getElementById('detailLog');
+        if (run.results && run.results.steps) {
+          logContainer.innerHTML = run.results.steps.map((step, i) => {
+            const statusColor = step.status === 'success' ? '#10b981' : '#ef4444';
+            const icon = step.status === 'success' ? '✓' : '✗';
+            return `
+              <div style="margin-bottom: 16px; padding: 12px; background: #2d2d2d; border-radius: 4px; border-left: 3px solid ${statusColor};">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span style="color: ${statusColor}; font-weight: bold;">${icon} Step ${step.step}: ${step.type}</span>
+                  <span style="color: #888;">${step.duration_ms}ms</span>
+                </div>
+                ${step.error ? `<div style="color: #ef4444; margin-bottom: 8px;">Error: ${step.error}</div>` : ''}
+                ${step.output ? `<details style="margin-top: 8px;">
+                  <summary style="cursor: pointer; color: #888;">Output</summary>
+                  <pre style="margin-top: 8px; color: #d4d4d4;">${JSON.stringify(step.output, null, 2)}</pre>
+                </details>` : ''}
+              </div>
+            `;
+          }).join('');
+        } else {
+          logContainer.textContent = JSON.stringify(run.results || run.result || {}, null, 2);
+        }
         
         // Auto-refresh if still running
         if (run.status === 'queued' || run.status === 'running') {
