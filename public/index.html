@@ -274,7 +274,8 @@
           Workspace: <span id="workspaceName"></span> | 
           Plan: <span id="workspacePlan">free</span> | 
           <a href="#" onclick="showSettings(); return false;" style="color: #2563eb;">Settings</a> | 
-          <a href="/pricing.html" style="color: #2563eb;">Upgrade</a>
+          <a href="/pricing.html" style="color: #2563eb;">Upgrade</a> | 
+          <a href="#" onclick="logout(); return false;" style="color: #ef4444;">Logout</a>
         </p>
       </header>
       
@@ -531,6 +532,17 @@
       toast.textContent = message;
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 10000);
+    }
+    
+    function logout() {
+      localStorage.removeItem('apiKey');
+      localStorage.removeItem('token');
+      sessionStorage.clear();
+      apiKey = null;
+      currentWorkspace = null;
+      hideAll();
+      document.getElementById('loginScreen').classList.remove('hidden');
+      showToast('Logged out', 'success');
     }
     
     function checkUsageWarning(workspace) {
