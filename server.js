@@ -260,6 +260,11 @@ app.post("/v1/runs", requireApiKey, requireWorkspace, async (req, res) => {
   };
   
   await data.createRun(run);
+  
+  // Increment monthly run counter
+  await data.updateWorkspace(req.workspace.workspace_id, {
+    runs_this_month: (req.workspace.runs_this_month || 0) + 1
+  });
 
   // Store in Redis for worker access
   await connection.set(`run:${run_id}`, JSON.stringify(run));
