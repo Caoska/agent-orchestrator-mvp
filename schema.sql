@@ -3,6 +3,10 @@ CREATE TABLE IF NOT EXISTS workspaces (
   name VARCHAR(255) NOT NULL,
   owner_email VARCHAR(255),
   api_key VARCHAR(255) UNIQUE NOT NULL,
+  plan VARCHAR(50) DEFAULT 'free',
+  stripe_customer_id VARCHAR(255),
+  stripe_subscription_id VARCHAR(255),
+  runs_this_month INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

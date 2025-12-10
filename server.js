@@ -7,12 +7,14 @@ import dotenv from "dotenv";
 import { initDb, getDb } from "./lib/db.js";
 import * as data from "./lib/data.js";
 import { scheduleRun, removeSchedule, listSchedules } from "./lib/scheduler.js";
+import { canExecuteRun, createCheckoutSession, createPortalSession } from "./lib/stripe.js";
 
 dotenv.config();
 await initDb();
 
 const app = express();
 app.use(bodyParser.json());
+app.use(express.static('public'));
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const QUEUE_NAME = process.env.QUEUE_NAME || "runs";
@@ -43,7 +45,7 @@ app.post("/v1/workspaces", async (req, res) => {
   
   const workspace_id = "ws_" + uuidv4();
   const api_key = "sk_test_" + uuidv4();
-  const ws = { workspace_id, name, owner_email, api_key, created_at: new Date().toISOString() };
+  const ws = { workspace_id, name, owner_email, api_key, plan: 'free', runs_this_month: 0, created_at: new Date().toISOString() };
   
   await data.createWorkspace(ws);
   res.json({ workspace_id, api_key });
@@ -61,6 +63,11 @@ app.post("/v1/projects", requireApiKey, requireWorkspace, async (req, res) => {
   
   await data.createProject(p);
   res.json(p);
+});
+
+app.get("/v1/projects", requireApiKey, requireWorkspace, async (req, res) => {
+  const projects = await data.listProjects(req.workspace.workspace_id);
+  res.json(projects);
 });
 
 app.post("/v1/secrets", requireApiKey, (req, res) => {
@@ -107,6 +114,24 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
   res.json({ agent_id });
 });
 
+app.get("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
+  const agents = await data.listAgents(req.workspace.workspace_id);
+  res.json(agents);
+});
+
+app.delete("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
+  const agent = await data.getAgent(req.params.id);
+  if (!agent) return res.status(404).json({ error: "not found" });
+  
+  const project = await data.getProject(agent.project_id);
+  if (!project || project.workspace_id !== req.workspace.workspace_id) {
+    return res.status(403).json({ error: "access denied" });
+  }
+  
+  await data.deleteAgent(req.params.id);
+  res.json({ ok: true });
+});
+
 app.get("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
   const agent = await data.getAgent(req.params.id);
   if (!agent) return res.status(404).json({ error: "not found" });
@@ -129,6 +154,11 @@ app.post("/v1/runs", requireApiKey, requireWorkspace, async (req, res) => {
     return res.status(403).json({ error: "access denied" });
   }
   
+  // Check usage limits
+  if (!canExecuteRun(req.workspace)) {
+    return res.status(402).json({ error: "run limit reached", upgrade_url: "/upgrade" });
+  }
+  
   const run_id = "run_" + uuidv4();
   const run = {
     run_id, agent_id, project_id, input, webhook: webhook || null,
@@ -143,6 +173,11 @@ app.post("/v1/runs", requireApiKey, requireWorkspace, async (req, res) => {
 
   await runQueue.add("run", { run_id }, { removeOnComplete: true, removeOnFail: false });
   res.json({ run_id, status: "queued" });
+});
+
+app.get("/v1/runs", requireApiKey, requireWorkspace, async (req, res) => {
+  const runs = await data.listRuns(req.workspace.workspace_id);
+  res.json(runs);
 });
 
 app.get("/v1/runs/:id", requireApiKey, requireWorkspace, async (req, res) => {
@@ -219,6 +254,76 @@ app.delete("/v1/schedules/:id", requireApiKey, requireWorkspace, async (req, res
 app.get("/v1/schedules", requireApiKey, requireWorkspace, async (req, res) => {
   const schedules = await listSchedules();
   res.json({ schedules });
+});
+
+app.get("/v1/workspace", requireApiKey, requireWorkspace, async (req, res) => {
+  res.json(req.workspace);
+});
+
+// Stripe endpoints
+app.post("/v1/checkout", requireApiKey, requireWorkspace, async (req, res) => {
+  const { plan } = req.body;
+  const { PLANS } = await import('./lib/stripe.js');
+  
+  if (!PLANS[plan]) return res.status(400).json({ error: "invalid plan" });
+  
+  try {
+    const session = await createCheckoutSession(
+      req.workspace.workspace_id,
+      plan,
+      `${req.headers.origin || 'http://localhost:8080'}?checkout=success`,
+      `${req.headers.origin || 'http://localhost:8080'}?checkout=cancel`
+    );
+    res.json({ url: session.url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/v1/billing-portal", requireApiKey, requireWorkspace, async (req, res) => {
+  if (!req.workspace.stripe_customer_id) {
+    return res.status(400).json({ error: "no subscription" });
+  }
+  
+  try {
+    const session = await createPortalSession(
+      req.workspace.stripe_customer_id,
+      req.headers.origin || 'http://localhost:8080'
+    );
+    res.json({ url: session.url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/v1/webhooks/stripe", express.raw({ type: 'application/json' }), async (req, res) => {
+  const { stripe } = await import('./lib/stripe.js');
+  const sig = req.headers['stripe-signature'];
+  
+  try {
+    const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      await data.updateWorkspace(session.metadata.workspace_id, {
+        plan: session.metadata.plan,
+        stripe_customer_id: session.customer,
+        stripe_subscription_id: session.subscription
+      });
+    }
+    
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
+      const workspace = await data.getWorkspaceByStripeCustomer(subscription.customer);
+      if (workspace) {
+        await data.updateWorkspace(workspace.workspace_id, { plan: 'free' });
+      }
+    }
+    
+    res.json({ received: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 app.get("/health", (req,res)=> res.json({ ok: true }));

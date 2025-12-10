@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Orchestrator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    
+    header {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    .subtitle { color: #666; font-size: 14px; }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .stat-value {
+      font-size: 32px;
+      font-weight: 600;
+      color: #2563eb;
+      margin-bottom: 4px;
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .section {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    h2 { font-size: 20px; }
+    
+    .btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    .btn:hover { background: #1d4ed8; }
+    .btn-secondary {
+      background: #6b7280;
+    }
+    .btn-secondary:hover { background: #4b5563; }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    
+    .list-item {
+      padding: 16px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .list-item:last-child { border-bottom: none; }
+    
+    .list-item-title {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    
+    .list-item-meta {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-error { background: #fee2e2; color: #991b1b; }
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    
+    .login-form {
+      max-width: 400px;
+      margin: 100px auto;
+      background: white;
+      padding: 32px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #2563eb;
+    }
+    
+    .hidden { display: none; }
+    
+    .toast {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      background: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+    }
+    
+    .toast.error { border-left: 4px solid #ef4444; }
+    .toast.success { border-left: 4px solid #10b981; }
+    
+    @keyframes slideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    
+    .modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 90%;
+    }
+    
+    .modal-content h2 {
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="loginScreen" class="login-form">
+    <h1 style="margin-bottom: 24px;">Agent Orchestrator</h1>
+    <div class="form-group">
+      <label>API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="sk_test_...">
+    </div>
+    <button class="btn" style="width: 100%;" onclick="login()">Continue</button>
+    <p style="margin-top: 16px; text-align: center; font-size: 14px; color: #666;">
+      Don't have an API key? <a href="#" onclick="showCreateWorkspace(); return false;" style="color: #2563eb;">Create workspace</a>
+    </p>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="hidden">
+    <div class="container">
+      <header>
+        <h1>Agent Orchestrator</h1>
+        <p class="subtitle">
+          Workspace: <span id="workspaceName"></span> | 
+          Plan: <span id="workspacePlan">free</span> | 
+          <a href="/pricing.html" style="color: #2563eb;">Upgrade</a>
+        </p>
+      </header>
+      
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-value" id="agentCount">0</div>
+          <div class="stat-label">Agents</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="runCount">0</div>
+          <div class="stat-label">Total Runs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="scheduleCount">0</div>
+          <div class="stat-label">Schedules</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="runsThisMonth">0</div>
+          <div class="stat-label">Runs This Month</div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="section-header">
+          <h2>Quick Start</h2>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+          <div style="padding: 16px; border: 2px dashed #d1d5db; border-radius: 8px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 8px;">🤖</div>
+            <div style="font-weight: 500; margin-bottom: 4px;">Create Agent</div>
+            <div style="font-size: 12px; color: #666; margin-bottom: 12px;">Build automated workflows</div>
+            <button class="btn" onclick="showAgentBuilder()">Get Started</button>
+          </div>
+          
+          <div style="padding: 16px; border: 2px dashed #d1d5db; border-radius: 8px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 8px;">📊</div>
+            <div style="font-weight: 500; margin-bottom: 4px;">View Runs</div>
+            <div style="font-size: 12px; color: #666; margin-bottom: 12px;">Monitor execution history</div>
+            <button class="btn btn-secondary" onclick="showRuns()">View History</button>
+          </div>
+          
+          <div style="padding: 16px; border: 2px dashed #d1d5db; border-radius: 8px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 8px;">📚</div>
+            <div style="font-weight: 500; margin-bottom: 4px;">Documentation</div>
+            <div style="font-size: 12px; color: #666; margin-bottom: 12px;">Learn how to use tools</div>
+            <button class="btn btn-secondary" onclick="showDocs()">Read Docs</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="section-header">
+          <h2>Available Tools</h2>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+          <div style="padding: 12px; background: #f9fafb; border-radius: 6px; text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">🌐</div>
+            <div style="font-size: 14px; font-weight: 500;">HTTP</div>
+          </div>
+          <div style="padding: 12px; background: #f9fafb; border-radius: 6px; text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">🔔</div>
+            <div style="font-size: 14px; font-weight: 500;">Webhook</div>
+          </div>
+          <div style="padding: 12px; background: #f9fafb; border-radius: 6px; text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">⏱️</div>
+            <div style="font-size: 14px; font-weight: 500;">Delay</div>
+          </div>
+          <div style="padding: 12px; background: #f9fafb; border-radius: 6px; text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">🔀</div>
+            <div style="font-size: 14px; font-weight: 500;">Conditional</div>
+          </div>
+          <div style="padding: 12px; background: #f9fafb; border-radius: 6px; text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">🔄</div>
+            <div style="font-size: 14px; font-weight: 500;">Transform</div>
+          </div>
+          <div style="padding: 12px; background: #f9fafb; border-radius: 6px; text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">💾</div>
+            <div style="font-size: 14px; font-weight: 500;">Database</div>
+          </div>
+          <div style="padding: 12px; background: #f9fafb; border-radius: 6px; text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">📧</div>
+            <div style="font-size: 14px; font-weight: 500;">SMTP</div>
+          </div>
+          <div style="padding: 12px; background: #f9fafb; border-radius: 6px; text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 4px;">⏰</div>
+            <div style="font-size: 14px; font-weight: 500;">Schedule</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="section-header">
+          <h2>My Agents</h2>
+        </div>
+        <div id="agentsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agent Builder -->
+  <div id="agentBuilder" class="hidden">
+    <div class="container">
+      <header>
+        <h1>Create Agent</h1>
+        <button class="btn btn-secondary" onclick="showDashboard()">← Back</button>
+      </header>
+      
+      <div class="section">
+        <div class="form-group">
+          <label>Agent Name</label>
+          <input type="text" id="agentName" placeholder="My Agent">
+        </div>
+        
+        <div class="form-group">
+          <label>Project</label>
+          <div id="projectSection">
+            <select id="projectSelect" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+              <option value="">Select a project...</option>
+            </select>
+            <div id="newProjectForm" class="hidden" style="margin-top: 12px; padding: 16px; background: #f9fafb; border-radius: 6px;">
+              <input type="text" id="newProjectName" placeholder="Project name" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; margin-bottom: 8px;">
+              <div style="display: flex; gap: 8px;">
+                <button class="btn" onclick="saveProject()">Create</button>
+                <button class="btn btn-secondary" onclick="cancelNewProject()">Cancel</button>
+              </div>
+            </div>
+            <button class="btn btn-secondary" id="newProjectBtn" onclick="showNewProjectForm()" style="margin-top: 8px;">+ New Project</button>
+          </div>
+        </div>
+        
+        <h3 style="margin: 24px 0 16px;">Tools</h3>
+        <div id="toolsList"></div>
+        
+        <button class="btn btn-secondary" onclick="addTool()" style="margin-top: 16px;">+ Add Tool</button>
+        
+        <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+          <button class="btn" onclick="createAgent()">Create Agent</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Run History -->
+  <div id="runHistory" class="hidden">
+    <div class="container">
+      <header style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>Run History</h1>
+        <div>
+          <button class="btn btn-secondary" onclick="showRuns()">🔄 Refresh</button>
+          <button class="btn btn-secondary" onclick="showDashboard()">← Back</button>
+        </div>
+      </header>
+      
+      <div class="section">
+        <div id="runsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Run Details -->
+  <div id="runDetails" class="hidden">
+    <div class="container">
+      <header style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>Run Details</h1>
+        <div>
+          <button class="btn btn-secondary" onclick="refreshRunDetails()">🔄 Refresh</button>
+          <button class="btn btn-secondary" onclick="showRuns()">← Back</button>
+        </div>
+      </header>
+      
+      <div class="section">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+          <div>
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">Status</div>
+            <div id="detailStatus"></div>
+          </div>
+          <div>
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">Agent</div>
+            <div id="detailAgent"></div>
+          </div>
+          <div>
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">Started</div>
+            <div id="detailStarted"></div>
+          </div>
+          <div>
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">Duration</div>
+            <div id="detailDuration"></div>
+          </div>
+        </div>
+        
+        <h3 style="margin-bottom: 16px;">Execution Log</h3>
+        <div id="detailLog" style="background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 6px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 600px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.origin;
+    let apiKey = localStorage.getItem('apiKey');
+    let workspace = null;
+    let tools = [];
+    let currentRuns = [];
+    let currentWorkspace = null;
+    let currentRunId = null;
+    let refreshTimer = null;
+    
+    function showToast(message, type = 'error') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 10000);
+    }
+    
+    function login() {
+      apiKey = document.getElementById('apiKeyInput').value;
+      if (!apiKey) return showToast('Please enter API key');
+      localStorage.setItem('apiKey', apiKey);
+      loadDashboard();
+    }
+    
+    function showCreateWorkspace() {
+      // Keep this simple - just show a toast directing to create via API
+      showToast('Create workspace via API: POST /v1/workspaces with {name, owner_email}');
+    }
+    
+    async function loadDashboard() {
+      try {
+        const res = await fetch(`${API_URL}/v1/agents`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        
+        if (res.status === 401) {
+          localStorage.removeItem('apiKey');
+          apiKey = null;
+          hideAll();
+          document.getElementById('loginScreen').classList.remove('hidden');
+          showToast('Invalid API key - please login again');
+          return;
+        }
+        
+        const agents = await res.json();
+        
+        const wsRes = await fetch(`${API_URL}/v1/workspace`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        currentWorkspace = await wsRes.json();
+        
+        const runsRes = await fetch(`${API_URL}/v1/runs`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        const runs = await runsRes.json();
+        
+        const schedulesRes = await fetch(`${API_URL}/v1/schedules`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        const schedules = await schedulesRes.json();
+        
+        hideAll();
+        document.getElementById('dashboard').classList.remove('hidden');
+        
+        document.getElementById('agentCount').textContent = agents.length;
+        document.getElementById('runCount').textContent = runs.length;
+        document.getElementById('scheduleCount').textContent = schedules.schedules?.length || 0;
+        document.getElementById('runsThisMonth').textContent = currentWorkspace?.runs_this_month || 0;
+        document.getElementById('workspacePlan').textContent = currentWorkspace?.plan || 'free';
+        
+        renderAgentsList(agents);
+        
+      } catch (err) {
+        showToast('Error loading dashboard: ' + err.message);
+      }
+    }
+    
+    function renderAgentsList(agents) {
+      const container = document.getElementById('agentsList');
+      if (agents.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🤖</div><div>No agents yet. Create one to get started!</div></div>';
+        return;
+      }
+      
+      container.innerHTML = agents.map(agent => `
+        <div class="list-item">
+          <div>
+            <div class="list-item-title">${agent.name}</div>
+            <div class="list-item-meta">${agent.steps?.length || 0} tool(s)</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn" onclick="runAgent('${agent.agent_id}', '${agent.project_id}')">▶ Run</button>
+            <button class="btn btn-secondary" onclick="deleteAgent('${agent.agent_id}')" style="background: #ef4444;">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    async function deleteAgent(agentId) {
+      if (!confirm('Delete this agent?')) return;
+      
+      try {
+        const res = await fetch(`${API_URL}/v1/agents/${agentId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+        
+        showToast('Agent deleted!', 'success');
+        loadDashboard();
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+    
+    async function runAgent(agentId, projectId) {
+      try {
+        const res = await fetch(`${API_URL}/v1/runs`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({ agent_id: agentId, project_id: projectId, input: {} })
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+        
+        const run = await res.json();
+        showToast('Agent started!', 'success');
+        
+        // Go directly to run history
+        showRuns();
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+    
+    function showDashboard() {
+      document.getElementById('dashboard').classList.remove('hidden');
+      document.getElementById('agentBuilder').classList.add('hidden');
+    }
+    
+    function showAgentBuilder() {
+      hideAll();
+      document.getElementById('agentBuilder').classList.remove('hidden');
+      tools = [];
+      renderTools();
+      loadProjects();
+    }
+    
+    async function loadProjects() {
+      try {
+        const res = await fetch(`${API_URL}/v1/projects`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        const projects = await res.json();
+        
+        const select = document.getElementById('projectSelect');
+        select.innerHTML = '<option value="">Select a project...</option>' + 
+          projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+      } catch (err) {
+        showToast('Error loading projects: ' + err.message);
+      }
+    }
+    
+    function showNewProjectForm() {
+      document.getElementById('newProjectForm').classList.remove('hidden');
+      document.getElementById('newProjectBtn').classList.add('hidden');
+      document.getElementById('newProjectName').focus();
+    }
+    
+    function cancelNewProject() {
+      document.getElementById('newProjectForm').classList.add('hidden');
+      document.getElementById('newProjectBtn').classList.remove('hidden');
+      document.getElementById('newProjectName').value = '';
+    }
+    
+    async function saveProject() {
+      const name = document.getElementById('newProjectName').value;
+      if (!name) return showToast('Name required');
+      
+      try {
+        const res = await fetch(`${API_URL}/v1/projects`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({ 
+            workspace_id: currentWorkspace.workspace_id, 
+            name 
+          })
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+        
+        const project = await res.json();
+        showToast('Project created!', 'success');
+        await loadProjects();
+        document.getElementById('projectSelect').value = project.project_id;
+        cancelNewProject();
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+    
+    function addTool() {
+      tools.push({ type: 'http', config: getToolTemplate('http') });
+      renderTools();
+    }
+    
+    function getToolTemplate(type) {
+      const templates = {
+        http: { url: 'https://api.github.com/zen', method: 'GET' },
+        webhook: { url: 'https://webhook.site/your-unique-url', method: 'POST', body: {} },
+        delay: { seconds: 5 },
+        conditional: { condition: '{{step0.status}} === 200', true_branch: [], false_branch: [] },
+        transform: { operation: 'extract', path: '$.data', output_key: 'result' },
+        database: { connection_string: 'postgresql://user:pass@host:5432/db', query: 'SELECT * FROM users LIMIT 10' },
+        smtp: { host: 'smtp.gmail.com', port: 587, from: 'you@example.com', to: 'recipient@example.com', subject: 'Test', body: 'Hello!' }
+      };
+      return templates[type] || {};
+    }
+    
+    function removeTool(index) {
+      tools.splice(index, 1);
+      renderTools();
+    }
+    
+    function renderTools() {
+      const container = document.getElementById('toolsList');
+      if (tools.length === 0) {
+        container.innerHTML = '<div style="color: #666; padding: 16px; text-align: center;">No tools added yet</div>';
+        return;
+      }
+      
+      container.innerHTML = tools.map((tool, i) => `
+        <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <select onchange="tools[${i}].type = this.value; tools[${i}].config = getToolTemplate(this.value); renderTools();" style="padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+              <option value="http" ${tool.type === 'http' ? 'selected' : ''}>HTTP</option>
+              <option value="webhook" ${tool.type === 'webhook' ? 'selected' : ''}>Webhook</option>
+              <option value="delay" ${tool.type === 'delay' ? 'selected' : ''}>Delay</option>
+              <option value="conditional" ${tool.type === 'conditional' ? 'selected' : ''}>Conditional</option>
+              <option value="transform" ${tool.type === 'transform' ? 'selected' : ''}>Transform</option>
+              <option value="database" ${tool.type === 'database' ? 'selected' : ''}>Database</option>
+              <option value="smtp" ${tool.type === 'smtp' ? 'selected' : ''}>SMTP</option>
+            </select>
+            <button onclick="removeTool(${i})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">Remove</button>
+          </div>
+          <textarea id="config${i}" placeholder='Tool configuration JSON' style="width: 100%; min-height: 120px; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-family: monospace; font-size: 12px;" onchange="try { tools[${i}].config = JSON.parse(this.value); } catch(e) { showToast('Invalid JSON'); }">${JSON.stringify(tool.config, null, 2)}</textarea>
+        </div>
+      `).join('');
+    }
+    
+    async function createAgent() {
+      const name = document.getElementById('agentName').value;
+      const projectId = document.getElementById('projectSelect').value;
+      
+      if (!name || !projectId) return showToast('Name and Project required');
+      if (tools.length === 0) return showToast('Add at least one tool');
+      
+      try {
+        const res = await fetch(`${API_URL}/v1/agents`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({ name, project_id: projectId, steps: tools })
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+        
+        showToast('Agent created!', 'success');
+        
+        // Clear form
+        document.getElementById('agentName').value = '';
+        document.getElementById('projectSelect').value = '';
+        tools = [];
+        renderTools();
+        
+        loadDashboard();
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+    
+    async function showRuns() {
+      // Clear any existing refresh timer
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+        refreshTimer = null;
+      }
+      
+      try {
+        const res = await fetch(`${API_URL}/v1/runs`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        currentRuns = await res.json();
+        
+        // Fetch all agents to get names
+        const agentsRes = await fetch(`${API_URL}/v1/agents`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        const agents = await agentsRes.json();
+        const agentMap = {};
+        agents.forEach(a => agentMap[a.agent_id] = a.name);
+        
+        hideAll();
+        document.getElementById('runHistory').classList.remove('hidden');
+        
+        const container = document.getElementById('runsList');
+        if (currentRuns.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div>No runs yet</div></div>';
+          return;
+        }
+        
+        container.innerHTML = currentRuns.map(run => {
+          const status = run.status === 'completed' ? 'success' : run.status === 'failed' ? 'error' : 'pending';
+          const date = new Date(run.created_at).toLocaleString();
+          const agentName = agentMap[run.agent_id] || run.agent_id;
+          return `
+            <div class="list-item" style="cursor: pointer;" onclick="showRunDetails('${run.run_id}')">
+              <div>
+                <div class="list-item-title">${agentName}</div>
+                <div class="list-item-meta">${date}</div>
+              </div>
+              <span class="badge badge-${status}">${run.status}</span>
+            </div>
+          `;
+        }).join('');
+        
+        // Auto-refresh if any runs are pending
+        const hasPending = currentRuns.some(r => r.status === 'queued' || r.status === 'running');
+        if (hasPending) {
+          refreshTimer = setTimeout(showRuns, 2000);
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+    
+    async function showRunDetails(runId) {
+      currentRunId = runId;
+      await refreshRunDetails();
+    }
+    
+    async function refreshRunDetails() {
+      if (!currentRunId) return;
+      
+      // Clear any existing refresh timer
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+        refreshTimer = null;
+      }
+      
+      try {
+        const res = await fetch(`${API_URL}/v1/runs/${currentRunId}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        const run = await res.json();
+        
+        hideAll();
+        document.getElementById('runDetails').classList.remove('hidden');
+        
+        const status = run.status === 'completed' ? 'success' : run.status === 'failed' ? 'error' : 'pending';
+        document.getElementById('detailStatus').innerHTML = `<span class="badge badge-${status}">${run.status}</span>`;
+        document.getElementById('detailAgent').textContent = run.agent_id;
+        document.getElementById('detailStarted').textContent = new Date(run.created_at).toLocaleString();
+        
+        const duration = run.completed_at 
+          ? Math.round((new Date(run.completed_at) - new Date(run.created_at)) / 1000) + 's'
+          : 'Running...';
+        document.getElementById('detailDuration').textContent = duration;
+        
+        document.getElementById('detailLog').textContent = JSON.stringify(run.results || run.result || {}, null, 2);
+        
+        // Auto-refresh if still running
+        if (run.status === 'queued' || run.status === 'running') {
+          refreshTimer = setTimeout(refreshRunDetails, 2000);
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+    
+    function hideAll() {
+      // Clear refresh timer when navigating away
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+        refreshTimer = null;
+      }
+      
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('agentBuilder').classList.add('hidden');
+      document.getElementById('runHistory').classList.add('hidden');
+      document.getElementById('runDetails').classList.add('hidden');
+    }
+    
+    function showDashboard() {
+      loadDashboard();
+    }
+    
+    function showDocs() {
+      window.open('https://github.com/Caoska/agent-orchestrator-mvp', '_blank');
+    }
+    
+    // Auto-login if API key exists
+    if (apiKey) {
+      loadDashboard();
+    } else {
+      document.getElementById('loginScreen').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
