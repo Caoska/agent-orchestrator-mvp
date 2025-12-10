@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import dotenv from "dotenv";
-import { executeHttpTool, executeSmtpTool } from "./lib/tools.js";
+import { executeHttpTool, executeSmtpTool, executeWebhookTool, executeDelayTool } from "./lib/tools.js";
 import { initDb } from "./lib/db.js";
 import * as data from "./lib/data.js";
 
@@ -17,6 +17,14 @@ const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 async function executeStep(step, context) {
   if (step.type === "http") {
     return await executeHttpTool(step.config, context);
+  }
+  
+  if (step.type === "webhook") {
+    return await executeWebhookTool(step.config, context);
+  }
+  
+  if (step.type === "delay") {
+    return await executeDelayTool(step.config, context);
   }
   
   if (step.type === "smtp") {
