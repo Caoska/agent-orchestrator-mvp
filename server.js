@@ -12,6 +12,7 @@ import { scheduleRun, removeSchedule, listSchedules } from "./lib/scheduler.js";
 import { canExecuteRun, createCheckoutSession, createPortalSession } from "./lib/stripe.js";
 import { TEMPLATES, getTemplate } from "./lib/templates.js";
 import { generateWebhookSecret } from "./lib/webhooks.js";
+import { rateLimit } from "./lib/ratelimit.js";
 
 dotenv.config();
 await initDb();
@@ -238,7 +239,7 @@ app.get("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
   res.json(agent);
 });
 
-app.post("/v1/runs", requireApiKey, requireWorkspace, async (req, res) => {
+app.post("/v1/runs", requireApiKey, requireWorkspace, rateLimit(60000, 100), async (req, res) => {
   const { agent_id, project_id, input = {}, run_async = true, webhook } = req.body;
   const agent = await data.getAgent(agent_id);
   if (!agent) return res.status(404).json({ error: "agent not found" });
