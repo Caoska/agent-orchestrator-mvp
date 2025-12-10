@@ -513,6 +513,8 @@
       if (limit === -1) return; // unlimited
       
       const usage = workspace?.runs_this_month || 0;
+      if (usage === 0) return; // no usage yet
+      
       const percent = (usage / limit) * 100;
       
       if (percent >= 80) {
