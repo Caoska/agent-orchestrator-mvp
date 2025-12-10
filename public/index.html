@@ -489,6 +489,19 @@
       </header>
       
       <div class="section">
+        <h2 style="margin-bottom: 16px;">Workspace</h2>
+        
+        <div class="form-group">
+          <label>API Key</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="password" id="workspaceApiKey" readonly style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb;">
+            <button class="btn btn-secondary" onclick="toggleApiKey()" style="white-space: nowrap;">Show</button>
+          </div>
+          <p style="font-size: 12px; color: #666; margin-top: 4px;">Use this key for API access and CLI tools.</p>
+        </div>
+      </div>
+      
+      <div class="section">
         <h2 style="margin-bottom: 16px;">API Keys</h2>
         
         <div class="form-group">
@@ -689,6 +702,7 @@
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn" onclick="runAgent('${agent.agent_id}', '${agent.project_id}')">▶ Run</button>
+            <button class="btn btn-secondary" onclick="cloneAgent('${agent.agent_id}')">📋 Clone</button>
             <button class="btn btn-secondary" onclick="deleteAgent('${agent.agent_id}')" style="background: #ef4444;">Delete</button>
           </div>
         </div>
@@ -708,6 +722,27 @@
         
         showToast('Agent deleted!', 'success');
         loadDashboard();
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+    
+    async function cloneAgent(agentId) {
+      try {
+        const res = await fetch(`${API_URL}/v1/agents/${agentId}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        const agent = await res.json();
+        
+        // Open agent builder with cloned data
+        showAgentBuilder();
+        document.getElementById('agentName').value = agent.name + ' (Copy)';
+        document.getElementById('maxRetries').value = agent.retry_policy?.max_attempts || 3;
+        document.getElementById('timeoutSeconds').value = agent.timeout_seconds || 300;
+        tools = JSON.parse(JSON.stringify(agent.steps)); // Deep clone
+        renderTools();
+        
+        showToast('Agent cloned! Edit and save.', 'success');
       } catch (err) {
         showToast('Error: ' + err.message);
       }
@@ -1021,7 +1056,20 @@
     function showSettings() {
       hideAll();
       document.getElementById('settings').classList.remove('hidden');
+      document.getElementById('workspaceApiKey').value = currentWorkspace?.api_key || '';
       document.getElementById('openaiKey').value = currentWorkspace?.openai_api_key || '';
+    }
+    
+    function toggleApiKey() {
+      const input = document.getElementById('workspaceApiKey');
+      const btn = event.target;
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'Hide';
+      } else {
+        input.type = 'password';
+        btn.textContent = 'Show';
+      }
     }
     
     async function saveSettings() {
