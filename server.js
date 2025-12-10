@@ -359,6 +359,13 @@ app.get("/v1/workspace", requireApiKey, requireWorkspace, async (req, res) => {
   res.json(req.workspace);
 });
 
+app.patch("/v1/workspace/settings", requireApiKey, requireWorkspace, async (req, res) => {
+  const { openai_api_key } = req.body;
+  
+  await data.updateWorkspace(req.workspace.workspace_id, { openai_api_key });
+  res.json({ updated: true });
+});
+
 app.get("/v1/templates", (req, res) => {
   res.json(TEMPLATES);
 });

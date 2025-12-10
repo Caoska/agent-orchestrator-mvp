@@ -91,7 +91,12 @@ const worker = new Worker(
     run.status = "running";
     run.started_at = new Date().toISOString();
     
-    const context = { ...run.input };
+    // Get workspace for API keys
+    const projectData = await connection.get(`project:${run.project_id}`);
+    const project = projectData ? JSON.parse(projectData) : null;
+    const workspace = project ? await data.getWorkspace(project.workspace_id) : null;
+    
+    const context = { ...run.input, _workspace: workspace };
     const stepLogs = [];
     let httpCalls = 0;
     let webhooks = 0;

@@ -273,6 +273,7 @@
         <p class="subtitle">
           Workspace: <span id="workspaceName"></span> | 
           Plan: <span id="workspacePlan">free</span> | 
+          <a href="#" onclick="showSettings(); return false;" style="color: #2563eb;">Settings</a> | 
           <a href="/pricing.html" style="color: #2563eb;">Upgrade</a>
         </p>
       </header>
@@ -475,6 +476,28 @@
         
         <h3 style="margin-bottom: 16px;">Execution Log</h3>
         <div id="detailLog" style="background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 6px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 600px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div id="settings" class="hidden">
+    <div class="container">
+      <header>
+        <h1>Settings</h1>
+        <button class="btn btn-secondary" onclick="showDashboard()">← Back</button>
+      </header>
+      
+      <div class="section">
+        <h2 style="margin-bottom: 16px;">API Keys</h2>
+        
+        <div class="form-group">
+          <label>OpenAI API Key</label>
+          <input type="password" id="openaiKey" placeholder="sk-proj-..." style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+          <p style="font-size: 12px; color: #666; margin-top: 4px;">Used for LLM tools across all agents. Get your key from <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #2563eb;">OpenAI</a>.</p>
+        </div>
+        
+        <button class="btn" onclick="saveSettings()">Save Settings</button>
       </div>
     </div>
   </div>
@@ -992,6 +1015,35 @@
       document.getElementById('agentBuilder').classList.add('hidden');
       document.getElementById('runHistory').classList.add('hidden');
       document.getElementById('runDetails').classList.add('hidden');
+      document.getElementById('settings').classList.add('hidden');
+    }
+    
+    function showSettings() {
+      hideAll();
+      document.getElementById('settings').classList.remove('hidden');
+      document.getElementById('openaiKey').value = currentWorkspace?.openai_api_key || '';
+    }
+    
+    async function saveSettings() {
+      const openaiKey = document.getElementById('openaiKey').value;
+      
+      try {
+        const res = await fetch(`${API_URL}/v1/workspace/settings`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({ openai_api_key: openaiKey })
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+        
+        showToast('Settings saved!', 'success');
+        currentWorkspace.openai_api_key = openaiKey;
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
     }
     
     function showDashboard() {
