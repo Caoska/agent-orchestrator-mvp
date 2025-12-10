@@ -4,8 +4,9 @@ import { v4 as uuidv4 } from "uuid";
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
 import dotenv from "dotenv";
-import { initDb } from "./lib/db.js";
+import { initDb, getDb } from "./lib/db.js";
 import * as data from "./lib/data.js";
+import { scheduleRun, removeSchedule, listSchedules } from "./lib/scheduler.js";
 
 dotenv.config();
 await initDb();
@@ -161,6 +162,63 @@ app.get("/v1/runs/:id", requireApiKey, requireWorkspace, async (req, res) => {
   }
   
   res.json(run);
+});
+
+// Schedules
+app.post("/v1/schedules", requireApiKey, requireWorkspace, async (req, res) => {
+  const { agent_id, project_id, input = {}, cron, interval_seconds } = req.body;
+  
+  if (!cron && !interval_seconds) {
+    return res.status(400).json({ error: "Either cron or interval_seconds required" });
+  }
+  
+  const agent = await data.getAgent(agent_id);
+  if (!agent) return res.status(404).json({ error: "agent not found" });
+  
+  const project = await data.getProject(agent.project_id);
+  if (!project || project.workspace_id !== req.workspace.workspace_id) {
+    return res.status(403).json({ error: "access denied" });
+  }
+  
+  const schedule_id = "sched_" + uuidv4();
+  const schedule = {
+    schedule_id,
+    agent_id,
+    project_id,
+    input,
+    cron: cron || null,
+    interval_seconds: interval_seconds || null,
+    enabled: true,
+    created_at: new Date().toISOString()
+  };
+  
+  const db = getDb();
+  if (db) {
+    await db.query(
+      'INSERT INTO schedules (schedule_id, agent_id, project_id, input, cron, interval_seconds, enabled) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [schedule_id, agent_id, project_id, JSON.stringify(input), cron, interval_seconds, true]
+    );
+  }
+  
+  await scheduleRun(schedule);
+  
+  res.json({ schedule_id, cron, interval_seconds });
+});
+
+app.delete("/v1/schedules/:id", requireApiKey, requireWorkspace, async (req, res) => {
+  await removeSchedule(req.params.id);
+  
+  const db = getDb();
+  if (db) {
+    await db.query('DELETE FROM schedules WHERE schedule_id = $1', [req.params.id]);
+  }
+  
+  res.json({ deleted: true });
+});
+
+app.get("/v1/schedules", requireApiKey, requireWorkspace, async (req, res) => {
+  const schedules = await listSchedules();
+  res.json({ schedules });
 });
 
 app.get("/health", (req,res)=> res.json({ ok: true }));

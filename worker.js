@@ -54,12 +54,30 @@ async function executeStep(step, context) {
 const worker = new Worker(
   QUEUE_NAME,
   async job => {
-    const { run_id } = job.data;
-    console.log("Worker: processing run", run_id);
+    const { run_id, agent_id, project_id, input, scheduled } = job.data;
+    
+    // For scheduled jobs, create a new run
+    let actualRunId = run_id;
+    if (scheduled) {
+      actualRunId = "run_" + (await import("uuid")).v4();
+      const run = {
+        run_id: actualRunId,
+        agent_id,
+        project_id,
+        input: input || {},
+        webhook: null,
+        status: "queued",
+        created_at: new Date().toISOString()
+      };
+      await data.createRun(run);
+      await connection.set(`run:${actualRunId}`, JSON.stringify(run));
+    }
+    
+    console.log("Worker: processing run", actualRunId, scheduled ? "(scheduled)" : "");
     
     // Fetch from Redis
-    const runData = await connection.get(`run:${run_id}`);
-    if (!runData) throw new Error(`Run ${run_id} not found`);
+    const runData = await connection.get(`run:${actualRunId}`);
+    if (!runData) throw new Error(`Run ${actualRunId} not found`);
     const run = JSON.parse(runData);
     
     const agentData = await connection.get(`agent:${run.agent_id}`);
@@ -89,8 +107,8 @@ const worker = new Worker(
       run.results = results;
       
       // Save to both Redis and DB
-      await connection.set(`run:${run_id}`, JSON.stringify(run));
-      await data.updateRun(run_id, {
+      await connection.set(`run:${actualRunId}`, JSON.stringify(run));
+      await data.updateRun(actualRunId, {
         status: "completed",
         completed_at: run.completed_at,
         results
@@ -101,8 +119,8 @@ const worker = new Worker(
       run.error = error.message;
       run.completed_at = new Date().toISOString();
       
-      await connection.set(`run:${run_id}`, JSON.stringify(run));
-      await data.updateRun(run_id, {
+      await connection.set(`run:${actualRunId}`, JSON.stringify(run));
+      await data.updateRun(actualRunId, {
         status: "failed",
         error: error.message,
         completed_at: run.completed_at
@@ -111,7 +129,7 @@ const worker = new Worker(
       console.error("Run failed:", error);
     }
     
-    return { ok: true, run_id, status: run.status };
+    return { ok: true, run_id: actualRunId, status: run.status };
   },
   { connection }
 );
