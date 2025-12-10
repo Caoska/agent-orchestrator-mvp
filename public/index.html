@@ -540,8 +540,17 @@
       sessionStorage.clear();
       apiKey = null;
       currentWorkspace = null;
+      
+      // Clear all form fields
+      document.getElementById('loginEmail').value = '';
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('signupName').value = '';
+      document.getElementById('signupEmail').value = '';
+      document.getElementById('signupPassword').value = '';
+      
       hideAll();
       document.getElementById('loginScreen').classList.remove('hidden');
+      showLoginForm(); // Ensure login view is shown, not signup
       showToast('Logged out', 'success');
     }
     
