@@ -91,9 +91,8 @@ const worker = new Worker(
     run.status = "running";
     run.started_at = new Date().toISOString();
     
-    // Get workspace for API keys
-    const projectData = await connection.get(`project:${run.project_id}`);
-    const project = projectData ? JSON.parse(projectData) : null;
+    // Get workspace for API keys from database
+    const project = await data.getProject(run.project_id);
     const workspace = project ? await data.getWorkspace(project.workspace_id) : null;
     
     const context = { ...run.input, _workspace: workspace };
