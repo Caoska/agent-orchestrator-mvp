@@ -395,6 +395,17 @@
           <input type="text" id="agentName" placeholder="My Agent">
         </div>
         
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+          <div class="form-group">
+            <label>Max Retries</label>
+            <input type="number" id="maxRetries" value="3" min="0" max="10" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+          </div>
+          <div class="form-group">
+            <label>Timeout (seconds)</label>
+            <input type="number" id="timeoutSeconds" value="300" min="10" max="3600" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+          </div>
+        </div>
+        
         <div style="margin: 16px 0; padding: 12px; background: #f9fafb; border-radius: 6px;">
           <label style="display: block; margin-bottom: 8px; font-size: 14px;">Add from Template</label>
           <select id="templateSelect" onchange="loadTemplate(this.value)" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
@@ -797,6 +808,8 @@
     
     async function createAgent() {
       const name = document.getElementById('agentName').value;
+      const maxRetries = parseInt(document.getElementById('maxRetries').value) || 3;
+      const timeoutSeconds = parseInt(document.getElementById('timeoutSeconds').value) || 300;
       
       if (!name) return showToast('Agent name required');
       if (tools.length === 0) return showToast('Add at least one tool');
@@ -816,7 +829,13 @@
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
           },
-          body: JSON.stringify({ name, project_id: projects[0].project_id, steps: tools })
+          body: JSON.stringify({ 
+            name, 
+            project_id: projects[0].project_id, 
+            steps: tools,
+            retry_policy: { max_attempts: maxRetries, backoff: 'exponential' },
+            timeout_seconds: timeoutSeconds
+          })
         });
         
         if (!res.ok) throw new Error(await res.text());
@@ -825,6 +844,8 @@
         
         // Clear form
         document.getElementById('agentName').value = '';
+        document.getElementById('maxRetries').value = '3';
+        document.getElementById('timeoutSeconds').value = '300';
         tools = [];
         renderTools();
         
