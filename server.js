@@ -5,6 +5,7 @@ import { Queue } from "bullmq";
 import IORedis from "ioredis";
 import dotenv from "dotenv";
 import { renderTemplate } from "./lib/templating.js";
+import { WORKSPACES, PROJECTS, TOOLS, AGENTS, RUNS } from "./lib/store.js";
 
 dotenv.config();
 
@@ -22,13 +23,7 @@ req.apiKey = h.slice(7);
 next();
 }
 
-const WORKSPACES = new Map();
-const PROJECTS = new Map();
-const TOOLS = new Map();
-const AGENTS = new Map();
-const RUNS = new Map();
-
-const connection = new IORedis(REDIS_URL);
+const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 const runQueue = new Queue(QUEUE_NAME, { connection });
 
 app.post("/v1/workspaces", (req, res) => {
@@ -94,11 +89,21 @@ run_id, agent_id, project_id, input, webhook: webhook || null,
 status: "queued", created_at: new Date().toISOString(), steps: [], logs: []
 };
 RUNS.set(run_id, run);
+
+// Store in Redis for worker access
+await connection.set(`run:${run_id}`, JSON.stringify(run));
+await connection.set(`agent:${agent_id}`, JSON.stringify(agent));
+
 await runQueue.add("run", { run_id }, { removeOnComplete: true, removeOnFail: false });
 res.json({ run_id, status: "queued" });
 });
 
-app.get("/v1/runs/:id", requireApiKey, (req, res) => {
+app.get("/v1/runs/:id", requireApiKey, async (req, res) => {
+// Try Redis first (for completed runs)
+const redisData = await connection.get(`run:${req.params.id}`);
+if (redisData) return res.json(JSON.parse(redisData));
+
+// Fall back to in-memory
 const r = RUNS.get(req.params.id);
 if (!r) return res.status(404).json({ error: "not found" });
 res.json(r);
