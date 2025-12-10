@@ -11,6 +11,7 @@ import * as data from "./lib/data.js";
 import { scheduleRun, removeSchedule, listSchedules } from "./lib/scheduler.js";
 import { canExecuteRun, createCheckoutSession, createPortalSession } from "./lib/stripe.js";
 import { TEMPLATES, getTemplate } from "./lib/templates.js";
+import { generateWebhookSecret } from "./lib/webhooks.js";
 
 dotenv.config();
 await initDb();
@@ -201,9 +202,10 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
   if (!Array.isArray(steps)) return res.status(400).json({ error: "steps required" });
   
   const agent_id = "agent_" + uuidv4();
-  const agent = { agent_id, project_id, name, steps, retry_policy, timeout_seconds, created_at: new Date().toISOString() };
+  const webhook_secret = generateWebhookSecret();
+  const agent = { agent_id, project_id, name, steps, retry_policy, timeout_seconds, webhook_secret, created_at: new Date().toISOString() };
   await data.createAgent(agent);
-  res.json({ agent_id });
+  res.json({ agent_id, webhook_secret });
 });
 
 app.get("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {

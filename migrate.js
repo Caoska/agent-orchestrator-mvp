@@ -69,7 +69,8 @@ async function migrate() {
       await client.query(`
         ALTER TABLE agents
         ADD COLUMN IF NOT EXISTS retry_policy JSONB DEFAULT '{}',
-        ADD COLUMN IF NOT EXISTS timeout_seconds INTEGER DEFAULT 300;
+        ADD COLUMN IF NOT EXISTS timeout_seconds INTEGER DEFAULT 300,
+        ADD COLUMN IF NOT EXISTS webhook_secret VARCHAR(255);
       `);
       
       // Runs table
