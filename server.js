@@ -10,6 +10,7 @@ import { initDb, getDb } from "./lib/db.js";
 import * as data from "./lib/data.js";
 import { scheduleRun, removeSchedule, listSchedules } from "./lib/scheduler.js";
 import { canExecuteRun, createCheckoutSession, createPortalSession } from "./lib/stripe.js";
+import { TEMPLATES, getTemplate } from "./lib/templates.js";
 
 dotenv.config();
 await initDb();
@@ -349,6 +350,16 @@ app.get("/v1/schedules", requireApiKey, requireWorkspace, async (req, res) => {
 
 app.get("/v1/workspace", requireApiKey, requireWorkspace, async (req, res) => {
   res.json(req.workspace);
+});
+
+app.get("/v1/templates", (req, res) => {
+  res.json(TEMPLATES);
+});
+
+app.get("/v1/templates/:id", (req, res) => {
+  const template = getTemplate(req.params.id);
+  if (!template) return res.status(404).json({ error: "template not found" });
+  res.json(template);
 });
 
 // Stripe endpoints
