@@ -5,7 +5,7 @@ const { Pool } = pg;
 async function migrate() {
   const pool = new Pool({ 
     connectionString: process.env.DATABASE_URL,
-    connectionTimeoutMillis: 30000,
+    connectionTimeoutMillis: 60000,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     max: 1
   });
@@ -157,9 +157,9 @@ async function migrate() {
       console.error(`Migration attempt failed (${5 - retries}/5):`, err.message);
       if (retries === 0) {
         console.error('Migration failed after 5 attempts - continuing anyway');
-        process.exit(0); // Exit successfully to allow server to start
+        process.exit(0);
       }
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
 }
