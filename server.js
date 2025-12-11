@@ -120,6 +120,59 @@ app.post("/v1/inbound/sms", bodyParser.urlencoded({ extended: true }), async (re
   }
 });
 
+// Inbound calendar webhook (Google Calendar)
+app.post("/v1/inbound/calendar", async (req, res) => {
+  try {
+    // Google Calendar sends notifications via push
+    const channelId = req.headers['x-goog-channel-id'];
+    const resourceState = req.headers['x-goog-resource-state'];
+    
+    // Only process sync notifications (event changes)
+    if (resourceState !== 'sync') {
+      // Find agent by channel ID mapping
+      // Format: AGENT_CALENDAR_MAPPINGS=agentId1:channelId1,agentId2:channelId2
+      const mappings = process.env.AGENT_CALENDAR_MAPPINGS?.split(',') || [];
+      const mapping = mappings.find(m => m.split(':')[1] === channelId);
+      const agentId = mapping?.split(':')[0];
+      
+      if (!agentId) {
+        return res.status(200).send('OK'); // Acknowledge but don't process
+      }
+      
+      const agent = await data.getAgent(agentId);
+      if (!agent) {
+        return res.status(200).send('OK');
+      }
+      
+      const input = {
+        channelId,
+        resourceState,
+        resourceId: req.headers['x-goog-resource-id'],
+        resourceUri: req.headers['x-goog-resource-uri'],
+        timestamp: new Date().toISOString()
+      };
+      
+      const run_id = "run_" + uuidv4();
+      const run = {
+        run_id,
+        agent_id: agentId,
+        project_id: agent.project_id,
+        input,
+        status: "queued",
+        created_at: new Date().toISOString()
+      };
+      
+      await data.createRun(run);
+      await queue.add("execute-run", { run_id }, { jobId: run_id });
+    }
+    
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('Inbound calendar error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Stripe webhook needs raw body as string
 app.post("/v1/webhooks/stripe", express.text({ type: 'application/json' }), async (req, res) => {
   const { stripe } = await import('./lib/stripe.js');

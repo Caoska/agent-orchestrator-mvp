@@ -249,6 +249,15 @@ Content-Type: application/json
         <li>Set Railway env var: <code>AGENT_PHONE_MAPPINGS=agentId:+1234567890</code></li>
       </ol>
       
+      <h3>Via Calendar</h3>
+      <p>Trigger agent when Google Calendar events change.</p>
+      <p><strong>Setup:</strong></p>
+      <ol>
+        <li>Set up Google Calendar API push notifications to <code>https://your-domain.com/v1/inbound/calendar</code></li>
+        <li>Set Railway env var: <code>AGENT_CALENDAR_MAPPINGS=agentId:channelId</code></li>
+        <li>Use Google Calendar API to watch calendar: <code>POST https://www.googleapis.com/calendar/v3/calendars/primary/events/watch</code></li>
+      </ol>
+      
       <h3>Via Schedule</h3>
       <p>Set up recurring runs using cron expressions:</p>
       <ul>
