@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation - Agent Orchestrator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    
+    .header {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    h1 { font-size: 28px; }
+    
+    .content {
+      background: white;
+      padding: 32px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    h2 {
+      font-size: 24px;
+      margin-top: 32px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    
+    h2:first-child { margin-top: 0; }
+    
+    h3 {
+      font-size: 18px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      color: #2563eb;
+    }
+    
+    p { margin-bottom: 16px; }
+    
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    
+    pre {
+      background: #1f2937;
+      color: #f9fafb;
+      padding: 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin-bottom: 16px;
+    }
+    
+    pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+    
+    ul, ol {
+      margin-left: 24px;
+      margin-bottom: 16px;
+    }
+    
+    li { margin-bottom: 8px; }
+    
+    .btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .btn-secondary {
+      background: #6b7280;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+    }
+    
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Documentation</h1>
+      <a href="/" class="btn btn-secondary">🏠 Home</a>
+    </div>
+    
+    <div class="content">
+      <h2>Getting Started</h2>
+      <p>Agent Orchestrator lets you build automated workflows using simple HTTP APIs, webhooks, databases, and more. Create agents that run on schedules or via API calls.</p>
+      
+      <h2>Core Concepts</h2>
+      
+      <h3>Agents</h3>
+      <p>An agent is a workflow made up of one or more steps. Each step uses a tool (HTTP, webhook, database, etc.) to perform an action. Steps run sequentially and can access data from previous steps.</p>
+      
+      <h3>Tools</h3>
+      <p>Tools are the building blocks of agents. Each tool performs a specific action:</p>
+      <ul>
+        <li><strong>HTTP</strong> - Make API calls to external services</li>
+        <li><strong>Webhook</strong> - Send data to webhook endpoints</li>
+        <li><strong>Database</strong> - Query PostgreSQL databases</li>
+        <li><strong>SMTP</strong> - Send emails</li>
+        <li><strong>Transform</strong> - Manipulate and transform data</li>
+        <li><strong>Conditional</strong> - Branch logic based on conditions</li>
+        <li><strong>Delay</strong> - Wait for a specified time</li>
+        <li><strong>LLM</strong> - Call OpenAI models for AI tasks</li>
+      </ul>
+      
+      <h3>Context Variables</h3>
+      <p>Access data from previous steps using template syntax:</p>
+      <pre><code>{{step0.data}}        - Output from first step
+{{step1.status}}      - HTTP status from second step
+{{_trigger.body}}     - Data from API trigger
+{{_workspace.name}}   - Workspace information</code></pre>
+      
+      <h2>Tool Configuration</h2>
+      
+      <h3>HTTP Tool</h3>
+      <pre><code>{
+  "url": "https://api.example.com/data",
+  "method": "GET",
+  "headers": {
+    "Authorization": "Bearer YOUR_TOKEN"
+  },
+  "body": {
+    "key": "value"
+  }
+}</code></pre>
+      
+      <h3>Webhook Tool</h3>
+      <pre><code>{
+  "url": "https://hooks.slack.com/services/YOUR/WEBHOOK",
+  "method": "POST",
+  "body": {
+    "text": "Message from agent: {{step0.data}}"
+  }
+}</code></pre>
+      
+      <h3>Database Tool</h3>
+      <pre><code>{
+  "connection_string": "postgresql://user:pass@host:5432/db",
+  "query": "SELECT * FROM users WHERE id = $1",
+  "params": ["{{_trigger.userId}}"]
+}</code></pre>
+      
+      <h3>SMTP Tool</h3>
+      <pre><code>{
+  "host": "smtp.gmail.com",
+  "port": 587,
+  "from": "you@example.com",
+  "to": "recipient@example.com",
+  "subject": "Alert",
+  "body": "Status: {{step0.status}}"
+}</code></pre>
+      
+      <h3>LLM Tool</h3>
+      <pre><code>{
+  "prompt": "Summarize this: {{step0.data}}",
+  "model": "gpt-4o-mini",
+  "temperature": 0.7,
+  "max_tokens": 1000,
+  "api_key": null
+}</code></pre>
+      <p>Note: Set <code>api_key</code> to <code>null</code> to use workspace OpenAI API key from Settings.</p>
+      
+      <h2>Running Agents</h2>
+      
+      <h3>Via API</h3>
+      <pre><code>POST /v1/agents/:agentId/run
+Authorization: Bearer YOUR_API_KEY
+Content-Type: application/json
+
+{
+  "input": {
+    "userId": "123",
+    "action": "process"
+  }
+}</code></pre>
+      
+      <h3>Via Schedule</h3>
+      <p>Set up recurring runs using cron expressions:</p>
+      <ul>
+        <li><code>0 9 * * *</code> - Daily at 9 AM</li>
+        <li><code>*/15 * * * *</code> - Every 15 minutes</li>
+        <li><code>0 0 * * 0</code> - Weekly on Sunday at midnight</li>
+      </ul>
+      
+      <h2>Usage Limits</h2>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Plan</th>
+            <th>Runs/Month</th>
+            <th>Steps/Month</th>
+            <th>HTTP Calls</th>
+            <th>Webhooks</th>
+            <th>Execution Hours</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Free</td>
+            <td>100</td>
+            <td>1,000</td>
+            <td>1,000</td>
+            <td>100</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td>Pro</td>
+            <td>10,000</td>
+            <td>100,000</td>
+            <td>100,000</td>
+            <td>10,000</td>
+            <td>100</td>
+          </tr>
+          <tr>
+            <td>Enterprise</td>
+            <td>Unlimited</td>
+            <td>Unlimited</td>
+            <td>Unlimited</td>
+            <td>Unlimited</td>
+            <td>Unlimited</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <h2>Best Practices</h2>
+      <ul>
+        <li>Use templates to access data from previous steps</li>
+        <li>Store sensitive credentials in workspace settings when possible</li>
+        <li>Set appropriate timeout values for long-running operations</li>
+        <li>Use retry policies for unreliable external APIs</li>
+        <li>Test agents with small datasets before scaling up</li>
+        <li>Monitor usage to stay within plan limits</li>
+      </ul>
+      
+      <h2>Support</h2>
+      <p>Need help? Check out these resources:</p>
+      <ul>
+        <li>Browse templates for working examples</li>
+        <li>View run logs to debug failures</li>
+        <li>Check usage stats in your dashboard</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
