@@ -926,6 +926,18 @@
       if (!name) return showToast('Agent name required');
       if (tools.length === 0) return showToast('Add at least one tool');
       
+      // Validate all tool configs are valid JSON
+      for (let i = 0; i < tools.length; i++) {
+        const textarea = document.getElementById(`config${i}`);
+        if (textarea) {
+          try {
+            tools[i].config = JSON.parse(textarea.value);
+          } catch (e) {
+            return showToast(`Invalid JSON in tool ${i + 1}`);
+          }
+        }
+      }
+      
       try {
         const isEditing = window.editingAgentId;
         
