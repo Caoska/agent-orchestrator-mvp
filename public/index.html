@@ -393,41 +393,33 @@
         <div class="form-group">
           <label>Triggers</label>
           <div style="background: #f9fafb; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
-            <label style="display: block; margin-bottom: 8px;">
-              <input type="checkbox" id="triggerCron" onchange="toggleTrigger('cron')" style="margin-right: 8px;">
-              Cron Schedule
-            </label>
-            <div id="cronInput" style="display: none; margin-left: 24px; margin-bottom: 12px;">
-              <input type="text" id="cronExpression" placeholder="0 9 * * *" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <input type="checkbox" id="triggerCron" onchange="toggleTrigger('cron')">
+              <label for="triggerCron" style="margin: 0; flex-shrink: 0;">Cron Schedule</label>
+              <input type="text" id="cronExpression" placeholder="0 9 * * *" disabled style="flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
             </div>
             
-            <label style="display: block; margin-bottom: 8px;">
-              <input type="checkbox" id="triggerWebhook" style="margin-right: 8px;">
-              Webhook
-            </label>
-            
-            <label style="display: block; margin-bottom: 8px;">
-              <input type="checkbox" id="triggerEmail" onchange="toggleTrigger('email')" style="margin-right: 8px;">
-              Email
-            </label>
-            <div id="emailInput" style="display: none; margin-left: 24px; margin-bottom: 12px;">
-              <input type="text" id="emailAddress" placeholder="agent-{agentId}@yourdomain.com" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <input type="checkbox" id="triggerWebhook">
+              <label for="triggerWebhook" style="margin: 0;">Webhook</label>
             </div>
             
-            <label style="display: block; margin-bottom: 8px;">
-              <input type="checkbox" id="triggerSms" onchange="toggleTrigger('sms')" style="margin-right: 8px;">
-              SMS
-            </label>
-            <div id="smsInput" style="display: none; margin-left: 24px; margin-bottom: 12px;">
-              <input type="text" id="smsPhone" placeholder="+1234567890" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <input type="checkbox" id="triggerEmail" onchange="toggleTrigger('email')">
+              <label for="triggerEmail" style="margin: 0; flex-shrink: 0;">Email</label>
+              <input type="text" id="emailAddress" placeholder="agent-{agentId}@yourdomain.com" disabled style="flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
             </div>
             
-            <label style="display: block;">
-              <input type="checkbox" id="triggerCalendar" onchange="toggleTrigger('calendar')" style="margin-right: 8px;">
-              Calendar
-            </label>
-            <div id="calendarInput" style="display: none; margin-left: 24px;">
-              <input type="text" id="calendarId" placeholder="channel-id-from-google" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <input type="checkbox" id="triggerSms" onchange="toggleTrigger('sms')">
+              <label for="triggerSms" style="margin: 0; flex-shrink: 0;">SMS</label>
+              <input type="text" id="smsPhone" placeholder="+1234567890" disabled style="flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="triggerCalendar" onchange="toggleTrigger('calendar')">
+              <label for="triggerCalendar" style="margin: 0; flex-shrink: 0;">Calendar</label>
+              <input type="text" id="calendarId" placeholder="channel-id-from-google" disabled style="flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
             </div>
           </div>
         </div>
@@ -994,14 +986,15 @@
     
     function toggleTrigger(type) {
       const inputs = {
-        cron: 'cronInput',
-        email: 'emailInput',
-        sms: 'smsInput',
-        calendar: 'calendarInput'
+        cron: 'cronExpression',
+        email: 'emailAddress',
+        sms: 'smsPhone',
+        calendar: 'calendarId'
       };
       const checkbox = document.getElementById(`trigger${type.charAt(0).toUpperCase() + type.slice(1)}`);
       const input = document.getElementById(inputs[type]);
-      input.style.display = checkbox.checked ? 'block' : 'none';
+      input.disabled = !checkbox.checked;
+      if (!checkbox.checked) input.value = '';
     }
 
     function updateTriggerInputs() {}
@@ -1139,8 +1132,10 @@
         ['triggerCron', 'triggerWebhook', 'triggerEmail', 'triggerSms', 'triggerCalendar'].forEach(id => {
           document.getElementById(id).checked = false;
         });
-        ['cronInput', 'emailInput', 'smsInput', 'calendarInput'].forEach(id => {
-          document.getElementById(id).style.display = 'none';
+        ['cronExpression', 'emailAddress', 'smsPhone', 'calendarId'].forEach(id => {
+          const input = document.getElementById(id);
+          input.disabled = true;
+          input.value = '';
         });
         tools = [];
         renderTools();
