@@ -277,7 +277,7 @@ app.post("/v1/auth/signup", async (req, res) => {
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email }] }],
-        from: { email: process.env.FROM_EMAIL || 'noreply@tillio.com' },
+        from: { email: process.env.FROM_EMAIL || 'noreply@siloworker.com' },
         subject: 'Verify your email',
         content: [{
           type: 'text/html',
@@ -353,7 +353,7 @@ app.post("/v1/auth/forgot-password", async (req, res) => {
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email }] }],
-        from: { email: process.env.FROM_EMAIL || 'noreply@tillio.com' },
+        from: { email: process.env.FROM_EMAIL || 'noreply@siloworker.com' },
         subject: 'Reset your password',
         content: [{
           type: 'text/html',
