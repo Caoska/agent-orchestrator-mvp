@@ -740,6 +740,7 @@
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn" onclick="runAgent('${agent.agent_id}', '${agent.project_id}')">▶ Run</button>
+            <button class="btn btn-secondary" onclick="showWebhook('${agent.agent_id}', '${agent.project_id}')">🔗 Webhook</button>
             <button class="btn btn-secondary" onclick="editAgent('${agent.agent_id}')">✏️ Edit</button>
             <button class="btn btn-secondary" onclick="cloneAgent('${agent.agent_id}')">📋 Clone</button>
             <button class="btn btn-secondary" onclick="deleteAgent('${agent.agent_id}')" style="background: #ef4444;">Delete</button>
@@ -812,6 +813,45 @@
       } catch (err) {
         showToast('Error: ' + err.message);
       }
+    }
+    
+    function showWebhook(agentId, projectId) {
+      const webhookUrl = `${API_URL}/v1/runs`;
+      const curlExample = `curl -X POST ${webhookUrl} \\
+  -H "Authorization: Bearer ${apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "agent_id": "${agentId}",
+    "project_id": "${projectId}",
+    "input": {
+      "key": "value"
+    }
+  }'`;
+      
+      const message = `
+        <div style="text-align: left;">
+          <h3 style="margin-bottom: 12px;">Webhook URL</h3>
+          <input type="text" value="${webhookUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; margin-bottom: 16px; font-family: monospace; font-size: 12px; border: 1px solid #d1d5db; border-radius: 4px;">
+          
+          <h3 style="margin-bottom: 12px;">Example cURL</h3>
+          <pre style="background: #1f2937; color: #f9fafb; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 11px; margin: 0;">${curlExample}</pre>
+          
+          <p style="margin-top: 16px; font-size: 12px; color: #666;">
+            Click the URL to copy. Use this endpoint to trigger the agent programmatically.
+          </p>
+        </div>
+      `;
+      
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;';
+      overlay.innerHTML = `
+        <div style="background: white; padding: 24px; border-radius: 8px; max-width: 600px; width: 90%;">
+          ${message}
+          <button class="btn" onclick="this.closest('div[style*=fixed]').remove()" style="margin-top: 16px; width: 100%;">Close</button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     }
     
     async function runAgent(agentId, projectId) {
