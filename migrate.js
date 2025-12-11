@@ -6,8 +6,12 @@ async function migrate() {
   const pool = new Pool({ 
     connectionString: process.env.DATABASE_URL,
     connectionTimeoutMillis: 60000,
+    query_timeout: 60000,
+    idle_in_transaction_session_timeout: 60000,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    max: 1
+    max: 1,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000
   });
   
   let retries = 5;
