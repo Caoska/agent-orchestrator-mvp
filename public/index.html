@@ -390,6 +390,42 @@
           <input type="text" id="agentName" placeholder="My Agent">
         </div>
         
+        <div style="margin: 24px 0;">
+          <h3 style="margin-bottom: 12px;">Triggers</h3>
+          <div style="background: #f9fafb; padding: 16px; border-radius: 6px;">
+            <label style="display: flex; align-items: center; margin-bottom: 12px;">
+              <input type="checkbox" id="triggerManual" checked disabled style="margin-right: 8px;">
+              <span>Manual (always available)</span>
+            </label>
+            
+            <label style="display: flex; align-items: center; margin-bottom: 8px;">
+              <input type="checkbox" id="triggerCron" onchange="toggleCronInput()" style="margin-right: 8px;">
+              <span>Cron Schedule</span>
+            </label>
+            <input type="text" id="cronExpression" placeholder="0 9 * * * (daily at 9 AM)" disabled style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 6px; display: none;">
+            
+            <label style="display: flex; align-items: center; margin-bottom: 8px;">
+              <input type="checkbox" id="triggerWebhook" checked disabled style="margin-right: 8px;">
+              <span>Webhook (always available)</span>
+            </label>
+            
+            <label style="display: flex; align-items: center; margin-bottom: 8px;">
+              <input type="checkbox" id="triggerEmail" checked disabled style="margin-right: 8px;">
+              <span>Email (agent-{agentId}@domain)</span>
+            </label>
+            
+            <label style="display: flex; align-items: center; margin-bottom: 8px;">
+              <input type="checkbox" id="triggerSms" disabled style="margin-right: 8px;">
+              <span>SMS (requires AGENT_PHONE_MAPPINGS)</span>
+            </label>
+            
+            <label style="display: flex; align-items: center;">
+              <input type="checkbox" id="triggerCalendar" disabled style="margin-right: 8px;">
+              <span>Calendar (requires AGENT_CALENDAR_MAPPINGS)</span>
+            </label>
+          </div>
+        </div>
+        
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
           <div class="form-group">
             <label>Max Retries</label>
@@ -732,8 +768,7 @@
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn" onclick="runAgent('${agent.agent_id}', '${agent.project_id}')">▶ Run</button>
-            <button class="btn btn-secondary" onclick="scheduleAgent('${agent.agent_id}', '${agent.project_id}')">⏰ Schedule</button>
-            <button class="btn btn-secondary" onclick="showWebhook('${agent.agent_id}', '${agent.project_id}')">🔗 Webhook</button>
+            <button class="btn btn-secondary" onclick="showWebhook('${agent.agent_id}', '${agent.project_id}')">🔗 Triggers</button>
             <button class="btn btn-secondary" onclick="editAgent('${agent.agent_id}')">✏️ Edit</button>
             <button class="btn btn-secondary" onclick="cloneAgent('${agent.agent_id}')">📋 Clone</button>
             <button class="btn btn-secondary" onclick="deleteAgent('${agent.agent_id}')" style="background: #ef4444;">Delete</button>
@@ -855,28 +890,6 @@
       overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     }
     
-    async function scheduleAgent(agentId, projectId) {
-      const cron = prompt('Enter cron expression (e.g., "0 9 * * *" for daily at 9 AM):');
-      if (!cron) return;
-      
-      try {
-        const res = await fetch(`${API_URL}/v1/schedules`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({ agent_id: agentId, project_id: projectId, cron, input: {} })
-        });
-        
-        if (!res.ok) throw new Error(await res.text());
-        
-        showToast('Schedule created!', 'success');
-      } catch (err) {
-        showToast('Error: ' + err.message);
-      }
-    }
-    
     async function runAgent(agentId, projectId) {
       try {
         const res = await fetch(`${API_URL}/v1/runs`, {
@@ -969,6 +982,13 @@
     function removeTool(index) {
       tools.splice(index, 1);
       renderTools();
+    }
+    
+    function toggleCronInput() {
+      const checkbox = document.getElementById('triggerCron');
+      const input = document.getElementById('cronExpression');
+      input.style.display = checkbox.checked ? 'block' : 'none';
+      input.disabled = !checkbox.checked;
     }
     
     function renderTools() {
@@ -1068,6 +1088,32 @@
           
           if (!res.ok) throw new Error(await res.text());
           
+          const agent = await res.json();
+          
+          // Create cron schedule if enabled
+          const cronEnabled = document.getElementById('triggerCron').checked;
+          const cronExpression = document.getElementById('cronExpression').value;
+          
+          if (cronEnabled && cronExpression) {
+            try {
+              await fetch(`${API_URL}/v1/schedules`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({ 
+                  agent_id: agent.agent_id, 
+                  project_id: projects[0].project_id, 
+                  cron: cronExpression, 
+                  input: {} 
+                })
+              });
+            } catch (schedErr) {
+              console.error('Failed to create schedule:', schedErr);
+            }
+          }
+          
           showToast('Agent created!', 'success');
         }
         
@@ -1075,6 +1121,9 @@
         document.getElementById('agentName').value = '';
         document.getElementById('maxRetries').value = '3';
         document.getElementById('timeoutSeconds').value = '300';
+        document.getElementById('triggerCron').checked = false;
+        document.getElementById('cronExpression').value = '';
+        document.getElementById('cronExpression').style.display = 'none';
         tools = [];
         renderTools();
         
