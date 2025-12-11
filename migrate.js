@@ -95,6 +95,23 @@ async function migrate() {
         ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
       `);
       
+      // Fix runs foreign key to preserve runs when agent is deleted
+      await client.query(`
+        DO $$ 
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.table_constraints 
+            WHERE constraint_name = 'runs_agent_id_fkey'
+          ) THEN
+            ALTER TABLE runs DROP CONSTRAINT runs_agent_id_fkey;
+          END IF;
+          
+          ALTER TABLE runs 
+          ADD CONSTRAINT runs_agent_id_fkey 
+          FOREIGN KEY (agent_id) REFERENCES agents(agent_id) ON DELETE SET NULL;
+        END $$;
+      `);
+      
       console.log('✓ Database schema migrated');
       client.release();
       await pool.end();
