@@ -327,9 +327,9 @@
           
           <div style="padding: 16px; border: 2px dashed #d1d5db; border-radius: 8px; text-align: center;">
             <div style="font-size: 32px; margin-bottom: 8px;">📚</div>
-            <div style="font-weight: 500; margin-bottom: 4px;">Documentation</div>
-            <div style="font-size: 12px; color: #666; margin-bottom: 12px;">Learn how to use tools</div>
-            <button class="btn btn-secondary" onclick="showDocs()">Read Docs</button>
+            <div style="font-weight: 500; margin-bottom: 4px;">Browse Templates</div>
+            <div style="font-size: 12px; color: #666; margin-bottom: 12px;">Start from examples</div>
+            <button class="btn btn-secondary" onclick="showAgentBuilder()">View Templates</button>
           </div>
         </div>
       </div>
@@ -1264,7 +1264,7 @@
     }
     
     function showDocs() {
-      window.open('/docs.html', '_blank');
+      window.location.href = '/docs.html';
     }
     
     // Auto-login if API key exists
