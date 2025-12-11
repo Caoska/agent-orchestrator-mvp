@@ -6,13 +6,13 @@ import IORedis from "ioredis";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { initDb, getDb } from "./lib/db.js";
-import * as data from "./lib/data.js";
-import { scheduleRun, removeSchedule, listSchedules } from "./lib/scheduler.js";
-import { canExecuteRun, createCheckoutSession, createPortalSession } from "./lib/stripe.js";
-import { TEMPLATES, getTemplate } from "./lib/templates.js";
-import { generateWebhookSecret } from "./lib/webhooks.js";
-import { rateLimit } from "./lib/ratelimit.js";
+import { initDb, getDb } from "../../lib/db.js";
+import * as data from "../../lib/data.js";
+import { scheduleRun, removeSchedule, listSchedules } from "../../lib/scheduler.js";
+import { canExecuteRun, createCheckoutSession, createPortalSession } from "../../lib/stripe.js";
+import { TEMPLATES, getTemplate } from "../../lib/templates.js";
+import { generateWebhookSecret } from "../../lib/webhooks.js";
+import { rateLimit } from "../../lib/ratelimit.js";
 
 dotenv.config();
 

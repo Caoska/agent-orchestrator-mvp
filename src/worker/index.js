@@ -1,9 +1,9 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import dotenv from "dotenv";
-import { executeHttpTool, executeSendGridTool, executeWebhookTool, executeDelayTool, executeConditionalTool, executeTransformTool, executeDatabaseTool, executeLLMTool, executeTwilioTool } from "./lib/tools.js";
-import { initDb } from "./lib/db.js";
-import * as data from "./lib/data.js";
+import { executeHttpTool, executeSendGridTool, executeWebhookTool, executeDelayTool, executeConditionalTool, executeTransformTool, executeDatabaseTool, executeLLMTool, executeTwilioTool } from "../../lib/tools.js";
+import { initDb } from "../../lib/db.js";
+import * as data from "../../lib/data.js";
 
 dotenv.config();
 await initDb();
