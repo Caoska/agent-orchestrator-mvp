@@ -394,35 +394,33 @@
           <h3 style="margin-bottom: 12px;">Triggers</h3>
           <div style="background: #f9fafb; padding: 16px; border-radius: 6px;">
             <label style="display: flex; align-items: center; margin-bottom: 12px;">
-              <input type="checkbox" id="triggerManual" checked disabled style="margin-right: 8px;">
-              <span>Manual (always available)</span>
-            </label>
-            
-            <label style="display: flex; align-items: center; margin-bottom: 8px;">
               <input type="checkbox" id="triggerCron" onchange="toggleCronInput()" style="margin-right: 8px;">
               <span>Cron Schedule</span>
             </label>
             <input type="text" id="cronExpression" placeholder="0 9 * * * (daily at 9 AM)" disabled style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 6px; display: none;">
             
-            <label style="display: flex; align-items: center; margin-bottom: 8px;">
-              <input type="checkbox" id="triggerWebhook" checked disabled style="margin-right: 8px;">
-              <span>Webhook (always available)</span>
+            <label style="display: flex; align-items: center; margin-bottom: 12px;">
+              <input type="checkbox" id="triggerWebhook" style="margin-right: 8px;">
+              <span>Webhook</span>
             </label>
             
-            <label style="display: flex; align-items: center; margin-bottom: 8px;">
-              <input type="checkbox" id="triggerEmail" checked disabled style="margin-right: 8px;">
-              <span>Email (agent-{agentId}@domain)</span>
+            <label style="display: flex; align-items: center; margin-bottom: 12px;">
+              <input type="checkbox" id="triggerEmail" style="margin-right: 8px;">
+              <span>Email</span>
             </label>
+            <input type="text" id="emailAddress" placeholder="agent-{agentId}@yourdomain.com" disabled style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 6px; display: none;">
             
-            <label style="display: flex; align-items: center; margin-bottom: 8px;">
-              <input type="checkbox" id="triggerSms" disabled style="margin-right: 8px;">
-              <span>SMS (requires AGENT_PHONE_MAPPINGS)</span>
+            <label style="display: flex; align-items: center; margin-bottom: 12px;">
+              <input type="checkbox" id="triggerSms" onchange="toggleSmsInput()" style="margin-right: 8px;">
+              <span>SMS</span>
             </label>
+            <input type="text" id="smsPhone" placeholder="+1234567890" disabled style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 6px; display: none;">
             
             <label style="display: flex; align-items: center;">
-              <input type="checkbox" id="triggerCalendar" disabled style="margin-right: 8px;">
-              <span>Calendar (requires AGENT_CALENDAR_MAPPINGS)</span>
+              <input type="checkbox" id="triggerCalendar" onchange="toggleCalendarInput()" style="margin-right: 8px;">
+              <span>Calendar</span>
             </label>
+            <input type="text" id="calendarId" placeholder="channel-id-from-google" disabled style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; display: none;">
           </div>
         </div>
         
@@ -990,6 +988,20 @@
       input.style.display = checkbox.checked ? 'block' : 'none';
       input.disabled = !checkbox.checked;
     }
+
+    function toggleSmsInput() {
+      const checkbox = document.getElementById('triggerSms');
+      const input = document.getElementById('smsPhone');
+      input.style.display = checkbox.checked ? 'block' : 'none';
+      input.disabled = !checkbox.checked;
+    }
+
+    function toggleCalendarInput() {
+      const checkbox = document.getElementById('triggerCalendar');
+      const input = document.getElementById('calendarId');
+      input.style.display = checkbox.checked ? 'block' : 'none';
+      input.disabled = !checkbox.checked;
+    }
     
     function renderTools() {
       const container = document.getElementById('toolsList');
@@ -1124,6 +1136,14 @@
         document.getElementById('triggerCron').checked = false;
         document.getElementById('cronExpression').value = '';
         document.getElementById('cronExpression').style.display = 'none';
+        document.getElementById('triggerWebhook').checked = false;
+        document.getElementById('triggerEmail').checked = false;
+        document.getElementById('triggerSms').checked = false;
+        document.getElementById('smsPhone').value = '';
+        document.getElementById('smsPhone').style.display = 'none';
+        document.getElementById('triggerCalendar').checked = false;
+        document.getElementById('calendarId').value = '';
+        document.getElementById('calendarId').style.display = 'none';
         tools = [];
         renderTools();
         
