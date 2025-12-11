@@ -324,13 +324,6 @@
             <div style="font-size: 12px; color: #666; margin-bottom: 12px;">Monitor execution history</div>
             <button class="btn btn-secondary" onclick="showRuns()">View History</button>
           </div>
-          
-          <div style="padding: 16px; border: 2px dashed #d1d5db; border-radius: 8px; text-align: center;">
-            <div style="font-size: 32px; margin-bottom: 8px;">📚</div>
-            <div style="font-weight: 500; margin-bottom: 4px;">Browse Templates</div>
-            <div style="font-size: 12px; color: #666; margin-bottom: 12px;">Start from examples</div>
-            <button class="btn btn-secondary" onclick="showAgentBuilder()">View Templates</button>
-          </div>
         </div>
       </div>
       
@@ -739,6 +732,7 @@
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn" onclick="runAgent('${agent.agent_id}', '${agent.project_id}')">▶ Run</button>
+            <button class="btn btn-secondary" onclick="scheduleAgent('${agent.agent_id}', '${agent.project_id}')">⏰ Schedule</button>
             <button class="btn btn-secondary" onclick="showWebhook('${agent.agent_id}', '${agent.project_id}')">🔗 Webhook</button>
             <button class="btn btn-secondary" onclick="editAgent('${agent.agent_id}')">✏️ Edit</button>
             <button class="btn btn-secondary" onclick="cloneAgent('${agent.agent_id}')">📋 Clone</button>
@@ -859,6 +853,28 @@
       `;
       document.body.appendChild(overlay);
       overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    }
+    
+    async function scheduleAgent(agentId, projectId) {
+      const cron = prompt('Enter cron expression (e.g., "0 9 * * *" for daily at 9 AM):');
+      if (!cron) return;
+      
+      try {
+        const res = await fetch(`${API_URL}/v1/schedules`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({ agent_id: agentId, project_id: projectId, cron, input: {} })
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+        
+        showToast('Schedule created!', 'success');
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
     }
     
     async function runAgent(agentId, projectId) {
