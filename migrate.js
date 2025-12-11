@@ -59,13 +59,16 @@ async function migrate() {
       }
       
       
-      // Rename old column if it exists
+      // Rename old column if it exists and new one doesn't
       await client.query(`
         DO $$ 
         BEGIN
           IF EXISTS (
             SELECT 1 FROM information_schema.columns 
             WHERE table_name = 'workspaces' AND column_name = 'openai_api_key'
+          ) AND NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'workspaces' AND column_name = 'llm_api_key'
           ) THEN
             ALTER TABLE workspaces RENAME COLUMN openai_api_key TO llm_api_key;
           END IF;
