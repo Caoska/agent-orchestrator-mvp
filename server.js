@@ -15,7 +15,12 @@ import { generateWebhookSecret } from "./lib/webhooks.js";
 import { rateLimit } from "./lib/ratelimit.js";
 
 dotenv.config();
-await initDb();
+
+// Initialize DB but don't block server startup if it fails
+initDb().catch(err => {
+  console.error('Database initialization failed:', err.message);
+  console.log('Server will continue without database');
+});
 
 const app = express();
 
