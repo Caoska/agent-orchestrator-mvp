@@ -713,7 +713,6 @@
         document.getElementById('stepsThisMonth').textContent = currentWorkspace?.steps_this_month || 0;
         document.getElementById('httpCallsThisMonth').textContent = currentWorkspace?.http_calls_this_month || 0;
         document.getElementById('executionHours').textContent = ((currentWorkspace?.execution_seconds_this_month || 0) / 3600).toFixed(2);
-        document.getElementById('workspacePlan').textContent = currentWorkspace?.plan || 'free';
         
         // Check usage and show warning
         checkUsageWarning(currentWorkspace);
