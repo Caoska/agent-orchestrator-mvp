@@ -5,7 +5,8 @@ const { Pool } = pg;
 async function migrate() {
   const pool = new Pool({ 
     connectionString: process.env.DATABASE_URL,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 30000,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     max: 1
   });
   
