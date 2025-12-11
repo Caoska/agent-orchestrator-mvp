@@ -244,6 +244,7 @@ app.post("/v1/auth/signup", async (req, res) => {
   const workspace_id = "ws_" + uuidv4();
   const api_key = "sk_test_" + uuidv4();
   const password_hash = await bcrypt.hash(password, 10);
+  const verification_token = uuidv4();
   
   const ws = { 
     workspace_id, 
@@ -252,7 +253,9 @@ app.post("/v1/auth/signup", async (req, res) => {
     api_key, 
     password_hash,
     plan: 'free', 
-    runs_this_month: 0, 
+    runs_this_month: 0,
+    email_verified: false,
+    verification_token,
     created_at: new Date().toISOString() 
   };
   
@@ -263,8 +266,31 @@ app.post("/v1/auth/signup", async (req, res) => {
   const project = { project_id, workspace_id, name: "Default Project", created_at: new Date().toISOString() };
   await data.createProject(project);
   
+  // Send verification email
+  const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify?token=${verification_token}`;
+  try {
+    await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email }] }],
+        from: { email: process.env.FROM_EMAIL || 'noreply@tillio.com' },
+        subject: 'Verify your email',
+        content: [{
+          type: 'text/html',
+          value: `<p>Click <a href="${verifyUrl}">here</a> to verify your email.</p>`
+        }]
+      })
+    });
+  } catch (e) {
+    console.error('Failed to send verification email:', e);
+  }
+  
   const token = jwt.sign({ workspace_id, email }, JWT_SECRET, { expiresIn: '30d' });
-  res.json({ token, workspace_id, api_key });
+  res.json({ token, workspace_id, api_key, message: 'Check your email to verify your account' });
 });
 
 app.post("/v1/auth/login", async (req, res) => {
@@ -279,6 +305,90 @@ app.post("/v1/auth/login", async (req, res) => {
   
   const token = jwt.sign({ workspace_id: workspace.workspace_id, email }, JWT_SECRET, { expiresIn: '30d' });
   res.json({ token, workspace_id: workspace.workspace_id, api_key: workspace.api_key });
+});
+
+app.post("/v1/auth/verify", async (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).json({ error: "missing token" });
+  
+  const db = getDb();
+  const result = await db.query(
+    'UPDATE workspaces SET email_verified = true, verification_token = null WHERE verification_token = $1 RETURNING workspace_id',
+    [token]
+  );
+  
+  if (result.rows.length === 0) {
+    return res.status(400).json({ error: "invalid or expired token" });
+  }
+  
+  res.json({ message: "Email verified successfully" });
+});
+
+app.post("/v1/auth/forgot-password", async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "missing email" });
+  
+  const workspace = await data.getWorkspaceByEmail(email);
+  if (!workspace) {
+    // Don't reveal if email exists
+    return res.json({ message: "If that email exists, a reset link has been sent" });
+  }
+  
+  const reset_token = uuidv4();
+  const reset_expires = new Date(Date.now() + 3600000).toISOString(); // 1 hour
+  
+  const db = getDb();
+  await db.query(
+    'UPDATE workspaces SET reset_token = $1, reset_token_expires = $2 WHERE workspace_id = $3',
+    [reset_token, reset_expires, workspace.workspace_id]
+  );
+  
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${reset_token}`;
+  try {
+    await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email }] }],
+        from: { email: process.env.FROM_EMAIL || 'noreply@tillio.com' },
+        subject: 'Reset your password',
+        content: [{
+          type: 'text/html',
+          value: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`
+        }]
+      })
+    });
+  } catch (e) {
+    console.error('Failed to send reset email:', e);
+  }
+  
+  res.json({ message: "If that email exists, a reset link has been sent" });
+});
+
+app.post("/v1/auth/reset-password", async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: "missing fields" });
+  
+  const db = getDb();
+  const result = await db.query(
+    'SELECT workspace_id FROM workspaces WHERE reset_token = $1 AND reset_token_expires > NOW()',
+    [token]
+  );
+  
+  if (result.rows.length === 0) {
+    return res.status(400).json({ error: "invalid or expired token" });
+  }
+  
+  const password_hash = await bcrypt.hash(password, 10);
+  await db.query(
+    'UPDATE workspaces SET password_hash = $1, reset_token = null, reset_token_expires = null WHERE workspace_id = $2',
+    [password_hash, result.rows[0].workspace_id]
+  );
+  
+  res.json({ message: "Password reset successfully" });
 });
 
 app.post("/v1/workspaces", async (req, res) => {

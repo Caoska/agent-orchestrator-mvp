@@ -44,7 +44,11 @@ async function migrate() {
         'llm_api_key VARCHAR(255)',
         'sendgrid_api_key VARCHAR(255)',
         'twilio_account_sid VARCHAR(255)',
-        'twilio_auth_token VARCHAR(255)'
+        'twilio_auth_token VARCHAR(255)',
+        'email_verified BOOLEAN DEFAULT false',
+        'verification_token VARCHAR(255)',
+        'reset_token VARCHAR(255)',
+        'reset_token_expires TIMESTAMP'
       ];
       
       for (const col of columns) {
