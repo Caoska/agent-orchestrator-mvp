@@ -390,39 +390,18 @@
           <input type="text" id="agentName" placeholder="My Agent">
         </div>
         
-        <div style="margin: 24px 0;">
-          <h3 style="margin-bottom: 12px;">Triggers</h3>
-          <div style="background: #f9fafb; padding: 16px; border-radius: 6px;">
-            <label style="display: flex; align-items: center; margin-bottom: 12px;">
-              <input type="checkbox" id="triggerCron" onchange="toggleCronInput()" style="margin-right: 8px;">
-              <span>Cron Schedule</span>
-            </label>
-            <input type="text" id="cronExpression" placeholder="0 9 * * * (daily at 9 AM)" disabled style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 6px; display: none;">
-            
-            <label style="display: flex; align-items: center; margin-bottom: 12px;">
-              <input type="checkbox" id="triggerWebhook" style="margin-right: 8px;">
-              <span>Webhook</span>
-            </label>
-            
-            <label style="display: flex; align-items: center; margin-bottom: 12px;">
-              <input type="checkbox" id="triggerEmail" style="margin-right: 8px;">
-              <span>Email</span>
-            </label>
-            <input type="text" id="emailAddress" placeholder="agent-{agentId}@yourdomain.com" disabled style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 6px; display: none;">
-            
-            <label style="display: flex; align-items: center; margin-bottom: 12px;">
-              <input type="checkbox" id="triggerSms" onchange="toggleSmsInput()" style="margin-right: 8px;">
-              <span>SMS</span>
-            </label>
-            <input type="text" id="smsPhone" placeholder="+1234567890" disabled style="width: 100%; padding: 8px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 6px; display: none;">
-            
-            <label style="display: flex; align-items: center;">
-              <input type="checkbox" id="triggerCalendar" onchange="toggleCalendarInput()" style="margin-right: 8px;">
-              <span>Calendar</span>
-            </label>
-            <input type="text" id="calendarId" placeholder="channel-id-from-google" disabled style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; display: none;">
-          </div>
+        <div class="form-group">
+          <label>Trigger Type</label>
+          <select id="triggerType" onchange="updateTriggerInputs()" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <option value="cron">Cron Schedule</option>
+            <option value="webhook">Webhook</option>
+            <option value="email">Email</option>
+            <option value="sms">SMS</option>
+            <option value="calendar">Calendar</option>
+          </select>
         </div>
+        
+        <div id="triggerInputs"></div>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
           <div class="form-group">
@@ -982,26 +961,22 @@
       renderTools();
     }
     
-    function toggleCronInput() {
-      const checkbox = document.getElementById('triggerCron');
-      const input = document.getElementById('cronExpression');
-      input.style.display = checkbox.checked ? 'block' : 'none';
-      input.disabled = !checkbox.checked;
+    function updateTriggerInputs() {
+      const type = document.getElementById('triggerType').value;
+      const container = document.getElementById('triggerInputs');
+      
+      const inputs = {
+        cron: '<div class="form-group"><label>Cron Expression</label><input type="text" id="cronExpression" placeholder="0 9 * * *"></div>',
+        webhook: '<div class="form-group"><label>Webhook URL</label><input type="text" id="webhookUrl" placeholder="https://your-domain.com/v1/runs"></div>',
+        email: '<div class="form-group"><label>Email Address</label><input type="text" id="emailAddress" placeholder="agent-{agentId}@yourdomain.com"></div>',
+        sms: '<div class="form-group"><label>Phone Number</label><input type="text" id="smsPhone" placeholder="+1234567890"></div>',
+        calendar: '<div class="form-group"><label>Calendar Channel ID</label><input type="text" id="calendarId" placeholder="channel-id-from-google"></div>'
+      };
+      
+      container.innerHTML = inputs[type] || '';
     }
 
-    function toggleSmsInput() {
-      const checkbox = document.getElementById('triggerSms');
-      const input = document.getElementById('smsPhone');
-      input.style.display = checkbox.checked ? 'block' : 'none';
-      input.disabled = !checkbox.checked;
-    }
-
-    function toggleCalendarInput() {
-      const checkbox = document.getElementById('triggerCalendar');
-      const input = document.getElementById('calendarId');
-      input.style.display = checkbox.checked ? 'block' : 'none';
-      input.disabled = !checkbox.checked;
-    }
+    function toggleCronInput() {}
     
     function renderTools() {
       const container = document.getElementById('toolsList');
@@ -1102,27 +1077,28 @@
           
           const agent = await res.json();
           
-          // Create cron schedule if enabled
-          const cronEnabled = document.getElementById('triggerCron').checked;
-          const cronExpression = document.getElementById('cronExpression').value;
-          
-          if (cronEnabled && cronExpression) {
-            try {
-              await fetch(`${API_URL}/v1/schedules`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({ 
-                  agent_id: agent.agent_id, 
-                  project_id: projects[0].project_id, 
-                  cron: cronExpression, 
-                  input: {} 
-                })
-              });
-            } catch (schedErr) {
-              console.error('Failed to create schedule:', schedErr);
+          // Create cron schedule if cron trigger selected
+          const triggerType = document.getElementById('triggerType').value;
+          if (triggerType === 'cron') {
+            const cronExpression = document.getElementById('cronExpression')?.value;
+            if (cronExpression) {
+              try {
+                await fetch(`${API_URL}/v1/schedules`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                  },
+                  body: JSON.stringify({ 
+                    agent_id: agent.agent_id, 
+                    project_id: projects[0].project_id, 
+                    cron: cronExpression, 
+                    input: {} 
+                  })
+                });
+              } catch (schedErr) {
+                console.error('Failed to create schedule:', schedErr);
+              }
             }
           }
           
@@ -1133,17 +1109,8 @@
         document.getElementById('agentName').value = '';
         document.getElementById('maxRetries').value = '3';
         document.getElementById('timeoutSeconds').value = '300';
-        document.getElementById('triggerCron').checked = false;
-        document.getElementById('cronExpression').value = '';
-        document.getElementById('cronExpression').style.display = 'none';
-        document.getElementById('triggerWebhook').checked = false;
-        document.getElementById('triggerEmail').checked = false;
-        document.getElementById('triggerSms').checked = false;
-        document.getElementById('smsPhone').value = '';
-        document.getElementById('smsPhone').style.display = 'none';
-        document.getElementById('triggerCalendar').checked = false;
-        document.getElementById('calendarId').value = '';
-        document.getElementById('calendarId').style.display = 'none';
+        document.getElementById('triggerType').value = 'cron';
+        document.getElementById('triggerInputs').innerHTML = '';
         tools = [];
         renderTools();
         
