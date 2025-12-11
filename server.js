@@ -34,8 +34,7 @@ app.post("/v1/webhooks/stripe", express.raw({ type: 'application/json' }), async
   });
   
   try {
-    const payload = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : req.body;
-    const event = stripe.webhooks.constructEvent(payload, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
     
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
