@@ -26,22 +26,38 @@ async function migrate() {
         );
       `);
       
-      await client.query(`
-        ALTER TABLE workspaces 
-        ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'free',
-        ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS runs_this_month INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS steps_this_month INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS http_calls_this_month INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS webhooks_this_month INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS execution_seconds_this_month INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS llm_api_key VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS sendgrid_api_key VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS twilio_account_sid VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS twilio_auth_token VARCHAR(255);
-      `);
+      // Add columns individually to avoid failure if any exist
+      const columns = [
+        'plan VARCHAR(50) DEFAULT \'free\'',
+        'stripe_customer_id VARCHAR(255)',
+        'stripe_subscription_id VARCHAR(255)',
+        'runs_this_month INTEGER DEFAULT 0',
+        'password_hash VARCHAR(255)',
+        'steps_this_month INTEGER DEFAULT 0',
+        'http_calls_this_month INTEGER DEFAULT 0',
+        'webhooks_this_month INTEGER DEFAULT 0',
+        'execution_seconds_this_month INTEGER DEFAULT 0',
+        'llm_api_key VARCHAR(255)',
+        'sendgrid_api_key VARCHAR(255)',
+        'twilio_account_sid VARCHAR(255)',
+        'twilio_auth_token VARCHAR(255)'
+      ];
+      
+      for (const col of columns) {
+        const colName = col.split(' ')[0];
+        await client.query(`
+          DO $$ 
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns 
+              WHERE table_name = 'workspaces' AND column_name = '${colName}'
+            ) THEN
+              ALTER TABLE workspaces ADD COLUMN ${col};
+            END IF;
+          END $$;
+        `);
+      }
+      
       
       // Rename old column if it exists
       await client.query(`
