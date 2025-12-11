@@ -29,17 +29,6 @@ app.post("/v1/webhooks/stripe", express.text({ type: 'application/json' }), asyn
   const { stripe } = await import('./lib/stripe.js');
   const sig = req.headers['stripe-signature'];
   
-  console.log('Webhook received:', {
-    hasSignature: !!sig,
-    hasBody: !!req.body,
-    bodyType: typeof req.body,
-    bodyLength: req.body?.length,
-    bodyPreview: req.body?.substring(0, 100),
-    hasSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
-    secretPrefix: process.env.STRIPE_WEBHOOK_SECRET?.substring(0, 6),
-    signaturePrefix: sig?.substring(0, 20)
-  });
-  
   try {
     const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
     
