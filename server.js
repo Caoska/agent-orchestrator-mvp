@@ -380,9 +380,13 @@ app.get("/v1/workspace", requireApiKey, requireWorkspace, async (req, res) => {
 });
 
 app.patch("/v1/workspace/settings", requireApiKey, requireWorkspace, async (req, res) => {
-  const { llm_api_key } = req.body;
+  const { llm_api_key, sendgrid_api_key } = req.body;
   
-  await data.updateWorkspace(req.workspace.workspace_id, { llm_api_key });
+  const updates = {};
+  if (llm_api_key !== undefined) updates.llm_api_key = llm_api_key;
+  if (sendgrid_api_key !== undefined) updates.sendgrid_api_key = sendgrid_api_key;
+  
+  await data.updateWorkspace(req.workspace.workspace_id, updates);
   res.json({ updated: true });
 });
 

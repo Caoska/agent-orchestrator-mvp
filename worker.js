@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import dotenv from "dotenv";
-import { executeHttpTool, executeSmtpTool, executeWebhookTool, executeDelayTool, executeConditionalTool, executeTransformTool, executeDatabaseTool, executeLLMTool } from "./lib/tools.js";
+import { executeHttpTool, executeSendGridTool, executeWebhookTool, executeDelayTool, executeConditionalTool, executeTransformTool, executeDatabaseTool, executeLLMTool } from "./lib/tools.js";
 import { initDb } from "./lib/db.js";
 import * as data from "./lib/data.js";
 
@@ -39,8 +39,8 @@ async function executeStep(step, context) {
     return await executeDatabaseTool(step.config, context);
   }
   
-  if (step.type === "smtp") {
-    return await executeSmtpTool(step.config, context);
+  if (step.type === "sendgrid") {
+    return await executeSendGridTool(step.config, context);
   }
   
   if (step.type === "llm") {
