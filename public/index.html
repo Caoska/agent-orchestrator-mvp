@@ -517,6 +517,17 @@
           <p style="font-size: 12px; color: #666; margin-top: 4px;">Used for SendGrid email tools across all agents. Get your key from <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" style="color: #2563eb;">SendGrid</a>.</p>
         </div>
         
+        <div class="form-group">
+          <label>Twilio Account SID</label>
+          <input type="password" id="twilioSid" placeholder="AC..." style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+        
+        <div class="form-group">
+          <label>Twilio Auth Token</label>
+          <input type="password" id="twilioToken" placeholder="..." style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+          <p style="font-size: 12px; color: #666; margin-top: 4px;">Used for Twilio SMS tools across all agents. Get credentials from <a href="https://console.twilio.com/" target="_blank" style="color: #2563eb;">Twilio Console</a>.</p>
+        </div>
+        
         <button class="btn" onclick="saveSettings()">Save Settings</button>
       </div>
     </div>
@@ -886,6 +897,7 @@
         transform: { operation: 'extract', path: '$.data', output_key: 'result' },
         database: { connection_string: 'postgresql://user:pass@host:5432/db', query: 'SELECT * FROM users LIMIT 10' },
         sendgrid: { from: 'you@example.com', to: 'recipient@example.com', subject: 'Test', text: 'Hello!', api_key: null },
+        twilio: { from: '+1234567890', to: '+1234567890', body: 'Hello!', account_sid: null, auth_token: null },
         llm: { provider: 'openai', prompt: 'Summarize this: {{step0.data}}', model: 'gpt-4o-mini', temperature: 0.7, max_tokens: 1000, api_key: null }
       };
       return templates[type] || {};
@@ -914,6 +926,7 @@
               <option value="transform" ${tool.type === 'transform' ? 'selected' : ''}>Transform</option>
               <option value="database" ${tool.type === 'database' ? 'selected' : ''}>Database</option>
               <option value="sendgrid" ${tool.type === 'sendgrid' ? 'selected' : ''}>SendGrid</option>
+              <option value="twilio" ${tool.type === 'twilio' ? 'selected' : ''}>Twilio</option>
               <option value="llm" ${tool.type === 'llm' ? 'selected' : ''}>LLM</option>
             </select>
             <button onclick="removeTool(${i})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">Remove</button>
@@ -1150,6 +1163,8 @@
       document.getElementById('workspaceApiKey').value = currentWorkspace?.api_key || '';
       document.getElementById('llmKey').value = currentWorkspace?.llm_api_key || '';
       document.getElementById('sendgridKey').value = currentWorkspace?.sendgrid_api_key || '';
+      document.getElementById('twilioSid').value = currentWorkspace?.twilio_account_sid || '';
+      document.getElementById('twilioToken').value = currentWorkspace?.twilio_auth_token || '';
     }
     
     function toggleApiKey() {
@@ -1167,6 +1182,8 @@
     async function saveSettings() {
       const llmKey = document.getElementById('llmKey').value;
       const sendgridKey = document.getElementById('sendgridKey').value;
+      const twilioSid = document.getElementById('twilioSid').value;
+      const twilioToken = document.getElementById('twilioToken').value;
       
       try {
         const res = await fetch(`${API_URL}/v1/workspace/settings`, {
@@ -1175,7 +1192,12 @@
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
           },
-          body: JSON.stringify({ llm_api_key: llmKey, sendgrid_api_key: sendgridKey })
+          body: JSON.stringify({ 
+            llm_api_key: llmKey, 
+            sendgrid_api_key: sendgridKey,
+            twilio_account_sid: twilioSid,
+            twilio_auth_token: twilioToken
+          })
         });
         
         if (!res.ok) throw new Error(await res.text());
@@ -1183,6 +1205,8 @@
         showToast('Settings saved!', 'success');
         currentWorkspace.llm_api_key = llmKey;
         currentWorkspace.sendgrid_api_key = sendgridKey;
+        currentWorkspace.twilio_account_sid = twilioSid;
+        currentWorkspace.twilio_auth_token = twilioToken;
       } catch (err) {
         showToast('Error: ' + err.message);
       }

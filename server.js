@@ -380,11 +380,13 @@ app.get("/v1/workspace", requireApiKey, requireWorkspace, async (req, res) => {
 });
 
 app.patch("/v1/workspace/settings", requireApiKey, requireWorkspace, async (req, res) => {
-  const { llm_api_key, sendgrid_api_key } = req.body;
+  const { llm_api_key, sendgrid_api_key, twilio_account_sid, twilio_auth_token } = req.body;
   
   const updates = {};
   if (llm_api_key !== undefined) updates.llm_api_key = llm_api_key;
   if (sendgrid_api_key !== undefined) updates.sendgrid_api_key = sendgrid_api_key;
+  if (twilio_account_sid !== undefined) updates.twilio_account_sid = twilio_account_sid;
+  if (twilio_auth_token !== undefined) updates.twilio_auth_token = twilio_auth_token;
   
   await data.updateWorkspace(req.workspace.workspace_id, updates);
   res.json({ updated: true });

@@ -38,7 +38,9 @@ async function migrate() {
         ADD COLUMN IF NOT EXISTS webhooks_this_month INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS execution_seconds_this_month INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS llm_api_key VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS sendgrid_api_key VARCHAR(255);
+        ADD COLUMN IF NOT EXISTS sendgrid_api_key VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS twilio_account_sid VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS twilio_auth_token VARCHAR(255);
       `);
       
       // Rename old column if it exists

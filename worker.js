@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import dotenv from "dotenv";
-import { executeHttpTool, executeSendGridTool, executeWebhookTool, executeDelayTool, executeConditionalTool, executeTransformTool, executeDatabaseTool, executeLLMTool } from "./lib/tools.js";
+import { executeHttpTool, executeSendGridTool, executeWebhookTool, executeDelayTool, executeConditionalTool, executeTransformTool, executeDatabaseTool, executeLLMTool, executeTwilioTool } from "./lib/tools.js";
 import { initDb } from "./lib/db.js";
 import * as data from "./lib/data.js";
 
@@ -41,6 +41,10 @@ async function executeStep(step, context) {
   
   if (step.type === "sendgrid") {
     return await executeSendGridTool(step.config, context);
+  }
+  
+  if (step.type === "twilio") {
+    return await executeTwilioTool(step.config, context);
   }
   
   if (step.type === "llm") {

@@ -145,6 +145,7 @@
         <li><strong>Webhook</strong> - Send data to webhook endpoints</li>
         <li><strong>Database</strong> - Query PostgreSQL databases</li>
         <li><strong>SendGrid</strong> - Send emails via SendGrid</li>
+        <li><strong>Twilio</strong> - Send SMS messages via Twilio</li>
         <li><strong>Transform</strong> - Manipulate and transform data</li>
         <li><strong>Conditional</strong> - Branch logic based on conditions</li>
         <li><strong>Delay</strong> - Wait for a specified time</li>
@@ -198,6 +199,16 @@
   "api_key": null
 }</code></pre>
       <p>Set <code>api_key</code> to <code>null</code> to use workspace SendGrid API key from Settings. Get your key from <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" style="color: #2563eb;">SendGrid</a>.</p>
+      
+      <h3>Twilio Tool</h3>
+      <pre><code>{
+  "from": "+1234567890",
+  "to": "+1234567890",
+  "body": "Alert: {{step0.status}}",
+  "account_sid": null,
+  "auth_token": null
+}</code></pre>
+      <p>Set credentials to <code>null</code> to use workspace Twilio credentials from Settings. Get credentials from <a href="https://console.twilio.com/" target="_blank" style="color: #2563eb;">Twilio Console</a>.</p>
       
       <h3>LLM Tool</h3>
       <pre><code>{
