@@ -817,6 +817,8 @@
     
     function showWebhook(agentId, projectId) {
       const webhookUrl = `${API_URL}/v1/runs`;
+      const emailAddress = `agent-${agentId}@${window.location.hostname}`;
+      
       const curlExample = `curl -X POST ${webhookUrl} \\
   -H "Authorization: Bearer ${apiKey}" \\
   -H "Content-Type: application/json" \\
@@ -833,19 +835,22 @@
           <h3 style="margin-bottom: 12px;">Webhook URL</h3>
           <input type="text" value="${webhookUrl}" readonly onclick="this.select()" style="width: 100%; padding: 8px; margin-bottom: 16px; font-family: monospace; font-size: 12px; border: 1px solid #d1d5db; border-radius: 4px;">
           
+          <h3 style="margin-bottom: 12px;">Email Trigger</h3>
+          <input type="text" value="${emailAddress}" readonly onclick="this.select()" style="width: 100%; padding: 8px; margin-bottom: 8px; font-family: monospace; font-size: 12px; border: 1px solid #d1d5db; border-radius: 4px;">
+          <p style="font-size: 11px; color: #666; margin-bottom: 16px;">Send email to this address to trigger the agent. Configure SendGrid Inbound Parse to forward to: ${API_URL}/v1/inbound/email</p>
+          
+          <h3 style="margin-bottom: 12px;">SMS Trigger</h3>
+          <p style="font-size: 11px; color: #666; margin-bottom: 16px;">Configure Twilio webhook: ${API_URL}/v1/inbound/sms<br>Set AGENT_PHONE_MAPPINGS env var: ${agentId}:+1234567890</p>
+          
           <h3 style="margin-bottom: 12px;">Example cURL</h3>
           <pre style="background: #1f2937; color: #f9fafb; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 11px; margin: 0;">${curlExample}</pre>
-          
-          <p style="margin-top: 16px; font-size: 12px; color: #666;">
-            Click the URL to copy. Use this endpoint to trigger the agent programmatically.
-          </p>
         </div>
       `;
       
       const overlay = document.createElement('div');
       overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;';
       overlay.innerHTML = `
-        <div style="background: white; padding: 24px; border-radius: 8px; max-width: 600px; width: 90%;">
+        <div style="background: white; padding: 24px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
           ${message}
           <button class="btn" onclick="this.closest('div[style*=fixed]').remove()" style="margin-top: 16px; width: 100%;">Close</button>
         </div>

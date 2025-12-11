@@ -223,17 +223,31 @@
       
       <h2>Running Agents</h2>
       
-      <h3>Via API</h3>
-      <pre><code>POST /v1/agents/:agentId/run
+      <h3>Via Webhook (HTTP)</h3>
+      <pre><code>POST /v1/runs
 Authorization: Bearer YOUR_API_KEY
 Content-Type: application/json
 
 {
+  "agent_id": "agent_abc123",
+  "project_id": "proj_xyz789",
   "input": {
     "userId": "123",
     "action": "process"
   }
 }</code></pre>
+      
+      <h3>Via Email</h3>
+      <p>Send email to <code>agent-{agentId}@yourdomain.com</code> to trigger the agent. The email content (from, subject, body) will be passed as input.</p>
+      <p><strong>Setup:</strong> Configure SendGrid Inbound Parse to forward emails to <code>https://your-domain.com/v1/inbound/email</code></p>
+      
+      <h3>Via SMS</h3>
+      <p>Send SMS to your Twilio number to trigger the agent. The message content will be passed as input.</p>
+      <p><strong>Setup:</strong></p>
+      <ol>
+        <li>Configure Twilio webhook: <code>https://your-domain.com/v1/inbound/sms</code></li>
+        <li>Set Railway env var: <code>AGENT_PHONE_MAPPINGS=agentId:+1234567890</code></li>
+      </ol>
       
       <h3>Via Schedule</h3>
       <p>Set up recurring runs using cron expressions:</p>

@@ -24,6 +24,102 @@ initDb().catch(err => {
 
 const app = express();
 
+// Inbound email webhook (SendGrid Inbound Parse)
+app.post("/v1/inbound/email", bodyParser.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    const to = req.body.to; // agent-{agentId}@yourdomain.com
+    const agentId = to.match(/agent-([^@]+)@/)?.[1];
+    
+    if (!agentId) {
+      return res.status(400).json({ error: 'Invalid recipient format' });
+    }
+    
+    const agent = await data.getAgent(agentId);
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+    
+    const input = {
+      from: req.body.from,
+      to: req.body.to,
+      subject: req.body.subject,
+      text: req.body.text,
+      html: req.body.html,
+      headers: req.body.headers
+    };
+    
+    const run_id = "run_" + uuidv4();
+    const run = {
+      run_id,
+      agent_id: agentId,
+      project_id: agent.project_id,
+      input,
+      status: "queued",
+      created_at: new Date().toISOString()
+    };
+    
+    await data.createRun(run);
+    await queue.add("execute-run", { run_id }, { jobId: run_id });
+    
+    res.json({ run_id, status: 'queued' });
+  } catch (err) {
+    console.error('Inbound email error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Inbound SMS webhook (Twilio)
+app.post("/v1/inbound/sms", bodyParser.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    const body = req.body.Body;
+    const from = req.body.From;
+    const to = req.body.To;
+    
+    // Find agent by phone number mapping (stored in env var)
+    // Format: AGENT_PHONE_MAPPINGS=agentId1:+1234567890,agentId2:+0987654321
+    const mappings = process.env.AGENT_PHONE_MAPPINGS?.split(',') || [];
+    const mapping = mappings.find(m => m.split(':')[1] === to);
+    const agentId = mapping?.split(':')[0];
+    
+    if (!agentId) {
+      return res.status(400).json({ error: 'No agent mapped to this number' });
+    }
+    
+    const agent = await data.getAgent(agentId);
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+    
+    const input = {
+      from,
+      to,
+      body,
+      messageSid: req.body.MessageSid,
+      accountSid: req.body.AccountSid
+    };
+    
+    const run_id = "run_" + uuidv4();
+    const run = {
+      run_id,
+      agent_id: agentId,
+      project_id: agent.project_id,
+      input,
+      status: "queued",
+      created_at: new Date().toISOString()
+    };
+    
+    await data.createRun(run);
+    await queue.add("execute-run", { run_id }, { jobId: run_id });
+    
+    // Respond with TwiML
+    res.type('text/xml');
+    res.send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+  } catch (err) {
+    console.error('Inbound SMS error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Stripe webhook needs raw body as string
 app.post("/v1/webhooks/stripe", express.text({ type: 'application/json' }), async (req, res) => {
   const { stripe } = await import('./lib/stripe.js');
