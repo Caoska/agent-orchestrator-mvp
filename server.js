@@ -24,8 +24,8 @@ initDb().catch(err => {
 
 const app = express();
 
-// Stripe webhook needs raw body
-app.post("/v1/webhooks/stripe", express.raw({ type: 'application/json' }), async (req, res) => {
+// Stripe webhook needs raw body as string
+app.post("/v1/webhooks/stripe", express.text({ type: 'application/json' }), async (req, res) => {
   const { stripe } = await import('./lib/stripe.js');
   const sig = req.headers['stripe-signature'];
   
@@ -33,9 +33,10 @@ app.post("/v1/webhooks/stripe", express.raw({ type: 'application/json' }), async
     hasSignature: !!sig,
     hasBody: !!req.body,
     bodyType: typeof req.body,
-    isBuffer: Buffer.isBuffer(req.body),
+    bodyLength: req.body?.length,
     hasSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
-    secretPrefix: process.env.STRIPE_WEBHOOK_SECRET?.substring(0, 6)
+    secretPrefix: process.env.STRIPE_WEBHOOK_SECRET?.substring(0, 6),
+    signaturePrefix: sig?.substring(0, 20)
   });
   
   try {
