@@ -380,9 +380,9 @@ app.get("/v1/workspace", requireApiKey, requireWorkspace, async (req, res) => {
 });
 
 app.patch("/v1/workspace/settings", requireApiKey, requireWorkspace, async (req, res) => {
-  const { openai_api_key } = req.body;
+  const { llm_api_key } = req.body;
   
-  await data.updateWorkspace(req.workspace.workspace_id, { openai_api_key });
+  await data.updateWorkspace(req.workspace.workspace_id, { llm_api_key });
   res.json({ updated: true });
 });
 

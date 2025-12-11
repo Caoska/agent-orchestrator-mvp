@@ -200,13 +200,14 @@
       
       <h3>LLM Tool</h3>
       <pre><code>{
+  "provider": "openai",
   "prompt": "Summarize this: {{step0.data}}",
   "model": "gpt-4o-mini",
   "temperature": 0.7,
   "max_tokens": 1000,
   "api_key": null
 }</code></pre>
-      <p>Note: Set <code>api_key</code> to <code>null</code> to use workspace OpenAI API key from Settings.</p>
+      <p>Supported providers: <code>openai</code> (GPT models) or <code>anthropic</code> (Claude models). Set <code>api_key</code> to <code>null</code> to use workspace LLM API key from Settings.</p>
       
       <h2>Running Agents</h2>
       

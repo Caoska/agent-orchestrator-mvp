@@ -506,9 +506,9 @@
         <h2 style="margin-bottom: 16px;">API Keys</h2>
         
         <div class="form-group">
-          <label>OpenAI API Key</label>
-          <input type="password" id="openaiKey" placeholder="sk-proj-..." style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
-          <p style="font-size: 12px; color: #666; margin-top: 4px;">Used for LLM tools across all agents. Get your key from <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #2563eb;">OpenAI</a>.</p>
+          <label>LLM API Key</label>
+          <input type="password" id="llmKey" placeholder="sk-..." style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+          <p style="font-size: 12px; color: #666; margin-top: 4px;">Used for LLM tools across all agents. Supports OpenAI and Anthropic. Get keys from <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #2563eb;">OpenAI</a> or <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color: #2563eb;">Anthropic</a>.</p>
         </div>
         
         <button class="btn" onclick="saveSettings()">Save Settings</button>
@@ -880,7 +880,7 @@
         transform: { operation: 'extract', path: '$.data', output_key: 'result' },
         database: { connection_string: 'postgresql://user:pass@host:5432/db', query: 'SELECT * FROM users LIMIT 10' },
         smtp: { host: 'smtp.gmail.com', port: 587, from: 'you@example.com', to: 'recipient@example.com', subject: 'Test', body: 'Hello!' },
-        llm: { prompt: 'Summarize this: {{step0.data}}', model: 'gpt-4o-mini', temperature: 0.7, max_tokens: 1000, api_key: null }
+        llm: { provider: 'openai', prompt: 'Summarize this: {{step0.data}}', model: 'gpt-4o-mini', temperature: 0.7, max_tokens: 1000, api_key: null }
       };
       return templates[type] || {};
     }
@@ -1142,7 +1142,7 @@
       hideAll();
       document.getElementById('settings').classList.remove('hidden');
       document.getElementById('workspaceApiKey').value = currentWorkspace?.api_key || '';
-      document.getElementById('openaiKey').value = currentWorkspace?.openai_api_key || '';
+      document.getElementById('llmKey').value = currentWorkspace?.llm_api_key || '';
     }
     
     function toggleApiKey() {
@@ -1158,7 +1158,7 @@
     }
     
     async function saveSettings() {
-      const openaiKey = document.getElementById('openaiKey').value;
+      const llmKey = document.getElementById('llmKey').value;
       
       try {
         const res = await fetch(`${API_URL}/v1/workspace/settings`, {
@@ -1167,13 +1167,13 @@
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
           },
-          body: JSON.stringify({ openai_api_key: openaiKey })
+          body: JSON.stringify({ llm_api_key: llmKey })
         });
         
         if (!res.ok) throw new Error(await res.text());
         
         showToast('Settings saved!', 'success');
-        currentWorkspace.openai_api_key = openaiKey;
+        currentWorkspace.llm_api_key = llmKey;
       } catch (err) {
         showToast('Error: ' + err.message);
       }

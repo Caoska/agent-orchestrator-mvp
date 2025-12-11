@@ -37,7 +37,20 @@ async function migrate() {
         ADD COLUMN IF NOT EXISTS http_calls_this_month INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS webhooks_this_month INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS execution_seconds_this_month INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS openai_api_key VARCHAR(255);
+        ADD COLUMN IF NOT EXISTS llm_api_key VARCHAR(255);
+      `);
+      
+      // Rename old column if it exists
+      await client.query(`
+        DO $$ 
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'workspaces' AND column_name = 'openai_api_key'
+          ) THEN
+            ALTER TABLE workspaces RENAME COLUMN openai_api_key TO llm_api_key;
+          END IF;
+        END $$;
       `);
       
       // Projects table
