@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS workspaces (
   stripe_customer_id VARCHAR(255),
   stripe_subscription_id VARCHAR(255),
   runs_this_month INTEGER DEFAULT 0,
+  emails_this_month INTEGER DEFAULT 0,
+  sms_this_month INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

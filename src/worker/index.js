@@ -30,6 +30,29 @@ async function executeStep(step, context) {
     throw new Error(`Unknown step type: ${step.type || step.tool}`);
   }
   
+  // Check usage limits for email/SMS
+  const workspace = context._workspace;
+  if (workspace && (step.type === 'sendgrid' || step.type === 'twilio')) {
+    const limits = {
+      free: { emails: 10, sms: 10 },
+      starter: { emails: 100, sms: 50 },
+      pro: { emails: 1000, sms: 500 },
+      scale: { emails: 10000, sms: 5000 },
+      enterprise: { emails: Infinity, sms: Infinity }
+    };
+    
+    const plan = workspace.plan || 'free';
+    const limit = limits[plan] || limits.free;
+    
+    if (step.type === 'sendgrid' && (workspace.emails_this_month || 0) >= limit.emails) {
+      throw new Error(`Monthly email limit exceeded (${limit.emails}). Upgrade plan or add your own SendGrid key.`);
+    }
+    
+    if (step.type === 'twilio' && (workspace.sms_this_month || 0) >= limit.sms) {
+      throw new Error(`Monthly SMS limit exceeded (${limit.sms}). Upgrade plan or add your own Twilio credentials.`);
+    }
+  }
+  
   return await executor(step.config, context);
 }
 
