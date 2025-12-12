@@ -12,51 +12,157 @@ const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const QUEUE_NAME = process.env.QUEUE_NAME || "runs";
 const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 
-// In-memory stores (shared with server for MVP)
-
 async function executeStep(step, context) {
-  if (step.type === "http") {
-    return await executeHttpTool(step.config, context);
+  const toolMap = {
+    http: executeHttpTool,
+    webhook: executeWebhookTool,
+    delay: executeDelayTool,
+    conditional: executeConditionalTool,
+    transform: executeTransformTool,
+    database: executeDatabaseTool,
+    sendgrid: executeSendGridTool,
+    twilio: executeTwilioTool,
+    llm: executeLLMTool
+  };
+  
+  const executor = toolMap[step.type || step.tool];
+  if (!executor) {
+    throw new Error(`Unknown step type: ${step.type || step.tool}`);
   }
   
-  if (step.type === "webhook") {
-    return await executeWebhookTool(step.config, context);
+  return await executor(step.config, context);
+}
+
+// Convert array format to graph format for backward compatibility
+function normalizeWorkflow(agent) {
+  // If already in graph format (has nodes), return as-is
+  if (agent.nodes && agent.connections) {
+    return { nodes: agent.nodes, connections: agent.connections };
   }
   
-  if (step.type === "delay") {
-    return await executeDelayTool(step.config, context);
+  // Convert array format to graph
+  const nodes = agent.steps.map((step, i) => ({
+    id: `node_${i}`,
+    type: step.tool || step.type,
+    config: step.config || step,
+    connections: step.connections || []
+  }));
+  
+  // Build connections from array order or explicit connections
+  const connections = [];
+  nodes.forEach((node, i) => {
+    if (node.connections && node.connections.length > 0) {
+      // Use explicit connections
+      node.connections.forEach(conn => {
+        connections.push({
+          from: node.id,
+          fromPort: conn.port || 'output',
+          to: conn.to,
+          toPort: 'input'
+        });
+      });
+    } else if (i < nodes.length - 1) {
+      // Linear connection to next node
+      connections.push({
+        from: node.id,
+        fromPort: 'output',
+        to: `node_${i + 1}`,
+        toPort: 'input'
+      });
+    }
+  });
+  
+  return { nodes, connections };
+}
+
+// Execute workflow as a graph
+async function executeWorkflow(workflow, initialContext, stepLogs) {
+  const { nodes, connections } = normalizeWorkflow(workflow);
+  const context = { ...initialContext };
+  const nodeOutputs = {};
+  const visited = new Set();
+  const MAX_ITERATIONS = 1000; // Prevent infinite loops
+  let iterations = 0;
+  
+  // Find starting node (connected from trigger or first node)
+  let currentNodeId = nodes[0]?.id;
+  
+  while (currentNodeId && iterations < MAX_ITERATIONS) {
+    iterations++;
+    
+    // Prevent infinite loops by tracking visits
+    const visitKey = `${currentNodeId}_${iterations}`;
+    if (visited.has(visitKey)) {
+      console.warn(`Loop detected at ${currentNodeId}, breaking`);
+      break;
+    }
+    visited.add(visitKey);
+    
+    const node = nodes.find(n => n.id === currentNodeId);
+    if (!node) break;
+    
+    const stepStart = Date.now();
+    console.log(`Executing node ${currentNodeId}: ${node.type}`);
+    
+    try {
+      // Build context with all previous node outputs
+      const execContext = { ...context, ...nodeOutputs };
+      
+      const result = await executeStep(node, execContext);
+      const duration = Date.now() - stepStart;
+      
+      // Store output
+      nodeOutputs[currentNodeId] = result;
+      
+      stepLogs.push({
+        node_id: currentNodeId,
+        type: node.type,
+        status: "success",
+        duration_ms: duration,
+        output: result,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Determine next node based on connections
+      let nextNodeId = null;
+      
+      if (node.type === 'conditional') {
+        // Branch based on condition result
+        const conditionMet = result.result === true || result === true;
+        const port = conditionMet ? 'true' : 'false';
+        const connection = connections.find(c => c.from === currentNodeId && c.fromPort === port);
+        nextNodeId = connection?.to;
+        
+        console.log(`Conditional result: ${conditionMet}, next: ${nextNodeId}`);
+      } else {
+        // Follow normal output connection
+        const connection = connections.find(c => c.from === currentNodeId && c.fromPort === 'output');
+        nextNodeId = connection?.to;
+      }
+      
+      currentNodeId = nextNodeId;
+      
+    } catch (stepError) {
+      const duration = Date.now() - stepStart;
+      
+      stepLogs.push({
+        node_id: currentNodeId,
+        type: node.type,
+        status: "failed",
+        duration_ms: duration,
+        error: stepError.message,
+        timestamp: new Date().toISOString()
+      });
+      
+      throw stepError;
+    }
   }
   
-  if (step.type === "conditional") {
-    return await executeConditionalTool(step.config, context);
+  if (iterations >= MAX_ITERATIONS) {
+    throw new Error('Workflow exceeded maximum iterations (possible infinite loop)');
   }
   
-  if (step.type === "transform") {
-    return await executeTransformTool(step.config, context);
-  }
-  
-  if (step.type === "database") {
-    return await executeDatabaseTool(step.config, context);
-  }
-  
-  if (step.type === "sendgrid") {
-    return await executeSendGridTool(step.config, context);
-  }
-  
-  if (step.type === "twilio") {
-    return await executeTwilioTool(step.config, context);
-  }
-  
-  if (step.type === "llm") {
-    return await executeLLMTool(step.config, context);
-  }
-  
-  if (step.type === "tool") {
-    // Tool references not implemented yet
-    throw new Error(`Tool references not yet supported`);
-  }
-  
-  throw new Error(`Unknown step type: ${step.type}`);
+  return nodeOutputs;
 }
 
 const worker = new Worker(
@@ -99,57 +205,19 @@ const worker = new Worker(
     const project = await data.getProject(run.project_id);
     const workspace = project ? await data.getWorkspace(project.workspace_id) : null;
     
-    const context = { ...run.input, _workspace: workspace };
+    const context = { input: run.input, _workspace: workspace };
     const stepLogs = [];
-    let httpCalls = 0;
-    let webhooks = 0;
     const runStart = Date.now();
     
     try {
-      for (let i = 0; i < agent.steps.length; i++) {
-        const step = agent.steps[i];
-        const stepStart = Date.now();
-        
-        console.log(`Executing step ${i}: ${step.type}`);
-        
-        // Track usage
-        if (step.type === 'http') httpCalls++;
-        if (step.type === 'webhook') webhooks++;
-        
-        try {
-          const result = await executeStep(step, context);
-          const duration = Date.now() - stepStart;
-          
-          stepLogs.push({
-            step: i,
-            type: step.type,
-            status: "success",
-            duration_ms: duration,
-            output: result,
-            timestamp: new Date().toISOString()
-          });
-          
-          // Update context with result
-          if (step.output_key) {
-            context[step.output_key] = result;
-          }
-        } catch (stepError) {
-          const duration = Date.now() - stepStart;
-          
-          stepLogs.push({
-            step: i,
-            type: step.type,
-            status: "failed",
-            duration_ms: duration,
-            error: stepError.message,
-            timestamp: new Date().toISOString()
-          });
-          
-          throw stepError;
-        }
-      }
+      // Execute workflow as graph
+      await executeWorkflow(agent, context, stepLogs);
       
       const executionSeconds = Math.ceil((Date.now() - runStart) / 1000);
+      
+      // Count usage
+      const httpCalls = stepLogs.filter(s => s.type === 'http').length;
+      const webhooks = stepLogs.filter(s => s.type === 'webhook').length;
       
       run.status = "completed";
       run.completed_at = new Date().toISOString();
