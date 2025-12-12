@@ -1,147 +1,863 @@
 openapi: 3.0.3
 info:
-title: Agent Orchestrator API (MVP)
-description: Minimal API spec for agent orchestrator MVP
-version: 0.1.0
+  title: Tillio API
+  description: |
+    Tillio is a workflow automation platform that lets you build, deploy, and run automated workflows using a visual builder.
+    
+    ## Authentication
+    Most endpoints require an API key obtained after signup. Include it in the Authorization header:
+    ```
+    Authorization: Bearer sk_live_your_api_key
+    ```
+    
+    ## Rate Limits
+    - Free: 100 runs/month, 10 emails, 10 SMS
+    - Starter: 5,000 runs/month, 100 emails, 50 SMS
+    - Pro: 50,000 runs/month, 1,000 emails, 500 SMS
+    - Scale: 500,000 runs/month, 10,000 emails, 5,000 SMS
+    - Enterprise: Unlimited with custom keys
+  version: 1.0.0
+  contact:
+    email: support@tillio.com
 servers:
-- url: https://api.example.com
+  - url: https://api.tillio.com
+    description: Production
+  - url: http://localhost:4000
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Authentication and account management
+  - name: Workspace
+    description: Workspace and settings management
+  - name: Projects
+    description: Project organization
+  - name: Agents
+    description: Workflow agents (automation templates)
+  - name: Runs
+    description: Workflow execution
+  - name: Schedules
+    description: Cron-based scheduling
+  - name: Templates
+    description: Pre-built workflow templates
+  - name: Billing
+    description: Subscription and billing
+  - name: Webhooks
+    description: Inbound webhooks and triggers
+
 paths:
-/v1/workspaces:
-post:
-summary: Create workspace
-requestBody:
-required: true
-content:
-application/json:
-schema:
-type: object
-properties:
-name:
-type: string
-owner_email:
-type: string
-responses:
-'200':
-description: workspace created
-content:
-application/json:
-schema:
-type: object
-properties:
-workspace_id: { type: string }
-api_key: { type: string }
-/v1/projects:
-post:
-summary: Create project in workspace
-security:
-- ApiKeyAuth: []
-requestBody:
-content:
-application/json:
-schema:
-type: object
-properties:
-workspace_id: { type: string }
-name: { type: string }
-responses:
-'200':
-description: created
-/v1/tools:
-post:
-summary: Register a tool (smtp/http)
-security:
-- ApiKeyAuth: []
-requestBody:
-content:
-application/json:
-schema:
-type: object
-properties:
-project_id: { type: string }
-type: { type: string }
-name: { type: string }
-config: { type: object }
-responses:
-'200':
-description: created
-content:
-application/json:
-schema:
-type: object
-properties:
-tool_id: { type: string }
-/v1/agents:
-post:
-summary: Create agent template
-security:
-- ApiKeyAuth: []
-requestBody:
-content:
-application/json:
-schema:
-type: object
-properties:
-project_id: { type: string }
-name: { type: string }
-steps:
-type: array
-items: { type: object }
-responses:
-'200':
-description: created
-content:
-application/json:
-schema:
-type: object
-properties:
-agent_id: { type: string }
-/v1/runs:
-post:
-summary: Start a run
-security:
-- ApiKeyAuth: []
-requestBody:
-content:
-application/json:
-schema:
-type: object
-properties:
-agent_id: { type: string }
-project_id: { type: string }
-input: { type: object }
-run_async: { type: boolean, default: true }
-webhook: { type: string }
-responses:
-'200':
-description: queued
-content:
-application/json:
-schema:
-type: object
-properties:
-run_id: { type: string }
-status: { type: string }
-/v1/runs/{run_id}:
-get:
-summary: Get run status
-security:
-- ApiKeyAuth: []
-parameters:
-- name: run_id
-in: path
-required: true
-schema:
-type: string
-responses:
-'200':
-description: run status
-content:
-application/json:
-schema:
-type: object
+  /v1/auth/signup:
+    post:
+      tags: [Auth]
+      summary: Create new account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Account created, verification email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  workspace_id:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login to account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  apiKey:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/auth/verify:
+    post:
+      tags: [Auth]
+      summary: Verify email address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Email verified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v1/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+      responses:
+        '200':
+          description: Reset email sent
+
+  /v1/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password with token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Password reset successful
+
+  /v1/workspace:
+    get:
+      tags: [Workspace]
+      summary: Get workspace details
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Workspace details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+    delete:
+      tags: [Workspace]
+      summary: Delete workspace (permanent)
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Workspace deleted
+
+  /v1/workspace/settings:
+    patch:
+      tags: [Workspace]
+      summary: Update workspace settings
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                llm_api_key:
+                  type: string
+                sendgrid_api_key:
+                  type: string
+                twilio_account_sid:
+                  type: string
+                twilio_auth_token:
+                  type: string
+      responses:
+        '200':
+          description: Settings updated
+
+  /v1/subscription/cancel:
+    post:
+      tags: [Workspace]
+      summary: Cancel subscription (downgrade to free)
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Subscription cancelled
+
+  /v1/projects:
+    post:
+      tags: [Projects]
+      summary: Create project
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  project_id:
+                    type: string
+    get:
+      tags: [Projects]
+      summary: List projects
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+
+  /v1/agents:
+    post:
+      tags: [Agents]
+      summary: Create agent
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, steps]
+              properties:
+                project_id:
+                  type: string
+                name:
+                  type: string
+                steps:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Step'
+      responses:
+        '200':
+          description: Agent created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent_id:
+                    type: string
+    get:
+      tags: [Agents]
+      summary: List agents
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agent'
+
+  /v1/agents/{id}:
+    get:
+      tags: [Agents]
+      summary: Get agent details
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+    put:
+      tags: [Agents]
+      summary: Update agent
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                steps:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Step'
+      responses:
+        '200':
+          description: Agent updated
+    delete:
+      tags: [Agents]
+      summary: Delete agent
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent deleted
+
+  /v1/runs:
+    post:
+      tags: [Runs]
+      summary: Execute agent
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id]
+              properties:
+                agent_id:
+                  type: string
+                project_id:
+                  type: string
+                input:
+                  type: object
+                  description: Input data for workflow
+                run_async:
+                  type: boolean
+                  default: true
+                webhook:
+                  type: string
+                  description: Callback URL for completion
+      responses:
+        '200':
+          description: Run queued or completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  run_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [queued, running, completed, failed]
+                  results:
+                    type: object
+    get:
+      tags: [Runs]
+      summary: List runs
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: List of runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Run'
+
+  /v1/runs/{id}:
+    get:
+      tags: [Runs]
+      summary: Get run status and results
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Run details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+
+  /v1/schedules:
+    post:
+      tags: [Schedules]
+      summary: Create cron schedule
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id, cron]
+              properties:
+                agent_id:
+                  type: string
+                cron:
+                  type: string
+                  description: Cron expression
+                  example: "0 9 * * *"
+                input:
+                  type: object
+      responses:
+        '200':
+          description: Schedule created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  schedule_id:
+                    type: string
+    get:
+      tags: [Schedules]
+      summary: List schedules
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: List of schedules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Schedule'
+
+  /v1/schedules/{id}:
+    delete:
+      tags: [Schedules]
+      summary: Delete schedule
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Schedule deleted
+
+  /v1/templates:
+    get:
+      tags: [Templates]
+      summary: List workflow templates
+      responses:
+        '200':
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Template'
+
+  /v1/templates/{id}:
+    get:
+      tags: [Templates]
+      summary: Get template details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Template details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+
+  /v1/checkout:
+    post:
+      tags: [Billing]
+      summary: Create Stripe checkout session
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan]
+              properties:
+                plan:
+                  type: string
+                  enum: [starter, pro, scale]
+      responses:
+        '200':
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+
+  /v1/billing-portal:
+    post:
+      tags: [Billing]
+      summary: Create Stripe billing portal session
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Portal session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+
+  /v1/inbound/email:
+    post:
+      tags: [Webhooks]
+      summary: Inbound email webhook (SendGrid)
+      description: Trigger agent via email. Configure SendGrid Inbound Parse to POST to this endpoint.
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                to:
+                  type: string
+                  description: "Format: agent-{agentId}@yourdomain.com"
+                from:
+                  type: string
+                subject:
+                  type: string
+                text:
+                  type: string
+                html:
+                  type: string
+      responses:
+        '200':
+          description: Run queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  run_id:
+                    type: string
+                  status:
+                    type: string
+
+  /v1/inbound/sms:
+    post:
+      tags: [Webhooks]
+      summary: Inbound SMS webhook (Twilio)
+      description: Trigger agent via SMS. Configure Twilio webhook to POST to this endpoint.
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                From:
+                  type: string
+                To:
+                  type: string
+                Body:
+                  type: string
+                MessageSid:
+                  type: string
+      responses:
+        '200':
+          description: Run queued
+
+  /v1/webhooks/stripe:
+    post:
+      tags: [Webhooks]
+      summary: Stripe webhook
+      description: Internal webhook for Stripe events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Event processed
+
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
 components:
-securitySchemes:
-ApiKeyAuth:
-type: apiKey
-in: header
-name: Authorization
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+  schemas:
+    Workspace:
+      type: object
+      properties:
+        workspace_id:
+          type: string
+        api_key:
+          type: string
+        plan:
+          type: string
+          enum: [free, starter, pro, scale, enterprise]
+        runs_this_month:
+          type: integer
+        emails_this_month:
+          type: integer
+        sms_this_month:
+          type: integer
+        stripe_customer_id:
+          type: string
+        stripe_subscription_id:
+          type: string
+        llm_api_key:
+          type: string
+        sendgrid_api_key:
+          type: string
+        twilio_account_sid:
+          type: string
+        twilio_auth_token:
+          type: string
+
+    Project:
+      type: object
+      properties:
+        project_id:
+          type: string
+        workspace_id:
+          type: string
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Agent:
+      type: object
+      properties:
+        agent_id:
+          type: string
+        project_id:
+          type: string
+        workspace_id:
+          type: string
+        name:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/Step'
+        created_at:
+          type: string
+          format: date-time
+
+    Step:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [http, webhook, sendgrid, twilio, database, llm, transform, conditional, delay]
+        config:
+          type: object
+          description: Configuration varies by tool type
+      example:
+        type: http
+        config:
+          url: "https://api.example.com/users"
+          method: GET
+          headers:
+            Authorization: "Bearer {{secrets.api_key}}"
+
+    Run:
+      type: object
+      properties:
+        run_id:
+          type: string
+        agent_id:
+          type: string
+        project_id:
+          type: string
+        workspace_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        input:
+          type: object
+        results:
+          type: object
+          properties:
+            steps:
+              type: array
+              items:
+                type: object
+        error:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    Schedule:
+      type: object
+      properties:
+        schedule_id:
+          type: string
+        agent_id:
+          type: string
+        workspace_id:
+          type: string
+        cron:
+          type: string
+        input:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    Template:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/Step'
