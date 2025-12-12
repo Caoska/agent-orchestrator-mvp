@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import bodyParser from "body-parser";
 import { v4 as uuidv4 } from "uuid";
 import { Queue } from "bullmq";
@@ -205,6 +206,10 @@ app.post("/v1/webhooks/stripe", express.text({ type: 'application/json' }), asyn
   }
 });
 
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true
+}));
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
