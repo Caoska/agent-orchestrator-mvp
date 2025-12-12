@@ -643,6 +643,33 @@ app.get("/v1/workspace", requireApiKey, requireWorkspace, async (req, res) => {
   res.json(req.workspace);
 });
 
+app.post("/v1/subscription/cancel", requireApiKey, requireWorkspace, async (req, res) => {
+  try {
+    await data.updateWorkspace(req.workspace.workspace_id, {
+      plan: 'free',
+      stripe_subscription_id: null
+    });
+    
+    // TODO: Cancel Stripe subscription if exists
+    // if (req.workspace.stripe_subscription_id) {
+    //   await stripe.subscriptions.cancel(req.workspace.stripe_subscription_id);
+    // }
+    
+    res.json({ message: "Subscription cancelled, downgraded to free tier" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete("/v1/workspace", requireApiKey, requireWorkspace, async (req, res) => {
+  try {
+    await data.deleteWorkspace(req.workspace.workspace_id);
+    res.json({ message: "Workspace deleted" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.patch("/v1/workspace/settings", requireApiKey, requireWorkspace, async (req, res) => {
   const { llm_api_key, sendgrid_api_key, twilio_account_sid, twilio_auth_token } = req.body;
   
