@@ -14,6 +14,7 @@ import { canExecuteRun, createCheckoutSession, createPortalSession } from "../..
 import { TEMPLATES, getTemplate } from "../../lib/templates.js";
 import { generateWebhookSecret } from "../../lib/webhooks.js";
 import { rateLimit } from "../../lib/ratelimit.js";
+import { verificationEmail, passwordResetEmail } from "../../lib/email-templates.js";
 
 dotenv.config();
 
@@ -284,10 +285,10 @@ app.post("/v1/auth/signup", async (req, res) => {
         body: JSON.stringify({
           personalizations: [{ to: [{ email }] }],
           from: { email: process.env.PLATFORM_SENDGRID_FROM_EMAIL || 'noreply@siloworker.dev' },
-          subject: 'Verify your email',
+          subject: 'Verify your email - Tillio',
           content: [{
             type: 'text/html',
-            value: `<p>Click <a href="${verifyUrl}">here</a> to verify your email.</p>`
+            value: verificationEmail(verifyUrl)
           }]
         })
       });
@@ -375,10 +376,10 @@ app.post("/v1/auth/forgot-password", async (req, res) => {
       body: JSON.stringify({
         personalizations: [{ to: [{ email }] }],
         from: { email: process.env.PLATFORM_SENDGRID_FROM_EMAIL || 'noreply@siloworker.dev' },
-        subject: 'Reset your password',
+        subject: 'Reset your password - Tillio',
         content: [{
           type: 'text/html',
-          value: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`
+          value: passwordResetEmail(resetUrl)
         }]
       })
     });
