@@ -288,7 +288,7 @@ app.post("/v1/auth/signup", async (req, res) => {
           subject: 'Verify your email - Tillio',
           content: [{
             type: 'text/html',
-            value: verificationEmail(verifyUrl)
+            value: verificationEmail(verifyUrl, verification_token)
           }]
         })
       });
@@ -321,6 +321,30 @@ app.post("/v1/auth/login", async (req, res) => {
   res.json({ token, workspace_id: workspace.workspace_id, api_key: workspace.api_key });
 });
 
+app.get("/v1/auth/verify/:token", async (req, res) => {
+  const { token } = req.params;
+  if (!token) {
+    return res.redirect(`${process.env.FRONTEND_URL}/verify?error=missing_token`);
+  }
+  
+  const db = getDb();
+  const result = await db.query(
+    'UPDATE workspaces SET email_verified = true, verification_token = null WHERE verification_token = $1 RETURNING workspace_id, owner_email, api_key',
+    [token]
+  );
+  
+  if (result.rows.length === 0) {
+    return res.redirect(`${process.env.FRONTEND_URL}/verify?error=invalid_token`);
+  }
+  
+  const workspace = result.rows[0];
+  const authToken = jwt.sign({ workspace_id: workspace.workspace_id, email: workspace.owner_email }, JWT_SECRET, { expiresIn: '30d' });
+  
+  // Redirect to frontend with tokens in URL (will be stored in localStorage)
+  res.redirect(`${process.env.FRONTEND_URL}/verify?success=true&token=${authToken}&apiKey=${workspace.api_key}`);
+});
+
+// Keep POST endpoint for backward compatibility
 app.post("/v1/auth/verify", async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ error: "missing token" });
