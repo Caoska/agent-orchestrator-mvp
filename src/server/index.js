@@ -337,12 +337,23 @@ app.get("/v1/auth/verify/:token", async (req, res) => {
   }
   
   const db = getDb();
+  
+  // Check if token exists first
+  const check = await db.query('SELECT workspace_id, email_verified FROM workspaces WHERE verification_token = $1', [token]);
+  console.log('Verification attempt:', { token: token.substring(0, 8) + '...', found: check.rows.length > 0, alreadyVerified: check.rows[0]?.email_verified });
+  
   const result = await db.query(
-    'UPDATE workspaces SET email_verified = true, verification_token = null WHERE verification_token = $1 RETURNING workspace_id, owner_email, api_key',
+    'UPDATE workspaces SET email_verified = true, verification_token = null WHERE verification_token = $1 AND email_verified = false RETURNING workspace_id, owner_email, api_key',
     [token]
   );
   
   if (result.rows.length === 0) {
+    // Check if already verified
+    if (check.rows.length > 0 && check.rows[0].email_verified) {
+      return res.redirect(`${process.env.FRONTEND_URL}/verify?error=already_verified`);
+    }
+    return res.redirect(`${process.env.FRONTEND_URL}/verify?error=invalid_token`);
+  }
     return res.redirect(`${process.env.FRONTEND_URL}/verify?error=invalid_token`);
   }
   
