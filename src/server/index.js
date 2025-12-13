@@ -259,7 +259,7 @@ app.post("/v1/auth/signup", async (req, res) => {
     password_hash,
     plan: 'free', 
     runs_this_month: 0,
-    email_verified: false,
+    email_verified: true, // Auto-verify if no SMTP configured
     verification_token,
     created_at: new Date().toISOString() 
   };
@@ -271,31 +271,33 @@ app.post("/v1/auth/signup", async (req, res) => {
   const project = { project_id, workspace_id, name: "Default Project", created_at: new Date().toISOString() };
   await data.createProject(project);
   
-  // Send verification email
-  const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify?token=${verification_token}`;
-  try {
-    await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email }] }],
-        from: { email: process.env.FROM_EMAIL || 'noreply@siloworker.dev' },
-        subject: 'Verify your email',
-        content: [{
-          type: 'text/html',
-          value: `<p>Click <a href="${verifyUrl}">here</a> to verify your email.</p>`
-        }]
-      })
-    });
-  } catch (e) {
-    console.error('Failed to send verification email:', e);
+  // Send verification email (optional - auto-verified if SMTP not configured)
+  if (process.env.SENDGRID_API_KEY || process.env.SMTP_HOST) {
+    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify?token=${verification_token}`;
+    try {
+      await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email }] }],
+          from: { email: process.env.FROM_EMAIL || 'noreply@siloworker.dev' },
+          subject: 'Verify your email',
+          content: [{
+            type: 'text/html',
+            value: `<p>Click <a href="${verifyUrl}">here</a> to verify your email.</p>`
+          }]
+        })
+      });
+    } catch (e) {
+      console.error('Failed to send verification email:', e);
+    }
   }
   
   const token = jwt.sign({ workspace_id, email }, JWT_SECRET, { expiresIn: '30d' });
-  res.json({ token, workspace_id, api_key, message: 'Check your email to verify your account' });
+  res.json({ token, workspace_id, apiKey: api_key, message: process.env.SENDGRID_API_KEY ? 'Check your email to verify your account' : 'Account created successfully' });
 });
 
 app.post("/v1/auth/login", async (req, res) => {
