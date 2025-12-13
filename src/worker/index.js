@@ -6,6 +6,12 @@ import { initDb } from "../../lib/db.js";
 import * as data from "../../lib/data.js";
 
 dotenv.config();
+console.log('Worker env check:', {
+  hasPlatformSendGrid: !!process.env.PLATFORM_SENDGRID_API_KEY,
+  hasPlatformTwilio: !!process.env.PLATFORM_TWILIO_ACCOUNT_SID,
+  hasRedis: !!process.env.REDIS_URL,
+  hasDb: !!process.env.DATABASE_URL
+});
 await initDb();
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
