@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: Tillio API
+  title: SiloWorker API
   description: |
-    Tillio is a workflow automation platform that lets you build, deploy, and run automated workflows using a visual builder.
+    SiloWorker is a workflow automation platform that lets you build, deploy, and run automated workflows using a visual builder.
     
     ## Authentication
     Most endpoints require an API key obtained after signup. Include it in the Authorization header:
@@ -18,9 +18,9 @@ info:
     - Enterprise: Unlimited with custom keys
   version: 1.0.0
   contact:
-    email: support@tillio.com
+    email: support@siloworker.com
 servers:
-  - url: https://api.tillio.com
+  - url: https://api.siloworker.com
     description: Production
   - url: http://localhost:4000
     description: Local development

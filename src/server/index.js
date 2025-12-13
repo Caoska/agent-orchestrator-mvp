@@ -285,7 +285,7 @@ app.post("/v1/auth/signup", async (req, res) => {
         body: JSON.stringify({
           personalizations: [{ to: [{ email }] }],
           from: { email: process.env.PLATFORM_SENDGRID_FROM_EMAIL || 'noreply@siloworker.dev' },
-          subject: 'Verify your email - Tillio',
+          subject: 'Verify your email - SiloWorker',
           content: [{
             type: 'text/html',
             value: verificationEmail(verifyUrl, verification_token)
@@ -400,7 +400,7 @@ app.post("/v1/auth/forgot-password", async (req, res) => {
       body: JSON.stringify({
         personalizations: [{ to: [{ email }] }],
         from: { email: process.env.PLATFORM_SENDGRID_FROM_EMAIL || 'noreply@siloworker.dev' },
-        subject: 'Reset your password - Tillio',
+        subject: 'Reset your password - SiloWorker',
         content: [{
           type: 'text/html',
           value: passwordResetEmail(resetUrl)
