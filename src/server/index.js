@@ -274,7 +274,7 @@ app.post("/v1/auth/signup", async (req, res) => {
   
   // Send verification email using platform SendGrid
   if (process.env.PLATFORM_SENDGRID_API_KEY) {
-    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify?token=${verification_token}`;
+    const apiUrl = `${process.env.API_URL || 'http://localhost:4000'}/v1/auth/verify/${verification_token}`;
     try {
       await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
@@ -288,7 +288,7 @@ app.post("/v1/auth/signup", async (req, res) => {
           subject: 'Verify your email - SiloWorker',
           content: [{
             type: 'text/html',
-            value: verificationEmail(verifyUrl, verification_token)
+            value: verificationEmail(apiUrl)
           }]
         })
       });
