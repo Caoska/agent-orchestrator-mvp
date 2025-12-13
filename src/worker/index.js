@@ -12,6 +12,7 @@ console.log('Worker env check:', {
   hasRedis: !!process.env.REDIS_URL,
   hasDb: !!process.env.DATABASE_URL
 });
+console.log('All PLATFORM_ vars:', Object.keys(process.env).filter(k => k.startsWith('PLATFORM_')));
 await initDb();
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
