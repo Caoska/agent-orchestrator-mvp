@@ -16,11 +16,11 @@ if (!isWorker) {
     
     const script = 'src/server/index.js';
     console.log(`Starting ${script}`);
-    spawn('node', [script], { stdio: 'inherit' });
+    spawn('node', [script], { stdio: 'inherit', env: process.env });
   });
 } else {
   const script = 'src/worker/index.js';
   console.log(`Starting ${script} (service: ${serviceName})`);
-  spawn('node', [script], { stdio: 'inherit' });
+  spawn('node', [script], { stdio: 'inherit', env: process.env });
 }
 
