@@ -274,7 +274,7 @@ app.post("/v1/auth/signup", async (req, res) => {
   
   // Send verification email using platform SendGrid
   if (process.env.PLATFORM_SENDGRID_API_KEY) {
-    const apiUrl = `${process.env.API_URL || 'http://localhost:4000'}/v1/auth/verify/${verification_token}`;
+    const apiUrl = `${process.env.API_URL}/v1/auth/verify/${verification_token}`;
     try {
       await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
@@ -389,7 +389,7 @@ app.post("/v1/auth/forgot-password", async (req, res) => {
     [reset_token, reset_expires, workspace.workspace_id]
   );
   
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${reset_token}`;
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${reset_token}`;
   try {
     await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
@@ -745,8 +745,8 @@ app.post("/v1/checkout", requireApiKey, requireWorkspace, async (req, res) => {
     const session = await createCheckoutSession(
       req.workspace.workspace_id,
       plan,
-      `${req.headers.origin || 'http://localhost:8080'}?checkout=success`,
-      `${req.headers.origin || 'http://localhost:8080'}?checkout=cancel`
+      `${req.headers.origin || process.env.FRONTEND_URL}?checkout=success`,
+      `${req.headers.origin || process.env.FRONTEND_URL}?checkout=cancel`
     );
     res.json({ url: session.url });
   } catch (err) {
@@ -762,7 +762,7 @@ app.post("/v1/billing-portal", requireApiKey, requireWorkspace, async (req, res)
   try {
     const session = await createPortalSession(
       req.workspace.stripe_customer_id,
-      req.headers.origin || 'http://localhost:8080'
+      req.headers.origin || process.env.FRONTEND_URL
     );
     res.json({ url: session.url });
   } catch (err) {
