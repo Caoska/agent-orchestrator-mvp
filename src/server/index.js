@@ -271,19 +271,19 @@ app.post("/v1/auth/signup", async (req, res) => {
   const project = { project_id, workspace_id, name: "Default Project", created_at: new Date().toISOString() };
   await data.createProject(project);
   
-  // Send verification email (optional - auto-verified if SMTP not configured)
-  if (process.env.SENDGRID_API_KEY || process.env.SMTP_HOST) {
+  // Send verification email using platform SendGrid
+  if (process.env.PLATFORM_SENDGRID_API_KEY) {
     const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify?token=${verification_token}`;
     try {
       await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+          'Authorization': `Bearer ${process.env.PLATFORM_SENDGRID_API_KEY}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           personalizations: [{ to: [{ email }] }],
-          from: { email: process.env.FROM_EMAIL || 'noreply@siloworker.dev' },
+          from: { email: process.env.PLATFORM_SENDGRID_FROM_EMAIL || 'noreply@siloworker.dev' },
           subject: 'Verify your email',
           content: [{
             type: 'text/html',
@@ -297,7 +297,7 @@ app.post("/v1/auth/signup", async (req, res) => {
   }
   
   const token = jwt.sign({ workspace_id, email }, JWT_SECRET, { expiresIn: '30d' });
-  res.json({ token, workspace_id, apiKey: api_key, message: process.env.SENDGRID_API_KEY ? 'Check your email to verify your account' : 'Account created successfully' });
+  res.json({ token, workspace_id, apiKey: api_key, message: process.env.PLATFORM_SENDGRID_API_KEY ? 'Check your email to verify your account' : 'Account created successfully' });
 });
 
 app.post("/v1/auth/login", async (req, res) => {
@@ -355,12 +355,12 @@ app.post("/v1/auth/forgot-password", async (req, res) => {
     await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+        'Authorization': `Bearer ${process.env.PLATFORM_SENDGRID_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email }] }],
-        from: { email: process.env.FROM_EMAIL || 'noreply@siloworker.dev' },
+        from: { email: process.env.PLATFORM_SENDGRID_FROM_EMAIL || 'noreply@siloworker.dev' },
         subject: 'Reset your password',
         content: [{
           type: 'text/html',
