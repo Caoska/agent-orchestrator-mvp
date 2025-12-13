@@ -18,6 +18,15 @@ import { verificationEmail, passwordResetEmail } from "../../lib/email-templates
 
 dotenv.config();
 
+// Validate required environment variables
+const requiredEnvVars = ['DATABASE_URL', 'REDIS_URL', 'JWT_SECRET', 'API_URL', 'FRONTEND_URL'];
+const missing = requiredEnvVars.filter(v => !process.env[v]);
+if (missing.length > 0) {
+  console.error('❌ Missing required environment variables:', missing.join(', '));
+  console.error('Server cannot start without these variables.');
+  process.exit(1);
+}
+
 // Initialize DB but don't block server startup if it fails
 initDb().catch(err => {
   console.error('Database initialization failed:', err.message);
