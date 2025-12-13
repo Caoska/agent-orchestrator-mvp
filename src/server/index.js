@@ -259,7 +259,7 @@ app.post("/v1/auth/signup", async (req, res) => {
     password_hash,
     plan: 'free', 
     runs_this_month: 0,
-    email_verified: true, // Auto-verify if no SMTP configured
+    email_verified: !process.env.PLATFORM_SENDGRID_API_KEY, // Auto-verify only if no SendGrid
     verification_token,
     created_at: new Date().toISOString() 
   };
@@ -297,7 +297,13 @@ app.post("/v1/auth/signup", async (req, res) => {
   }
   
   const token = jwt.sign({ workspace_id, email }, JWT_SECRET, { expiresIn: '30d' });
-  res.json({ token, workspace_id, apiKey: api_key, message: process.env.PLATFORM_SENDGRID_API_KEY ? 'Check your email to verify your account' : 'Account created successfully' });
+  res.json({ 
+    token, 
+    workspace_id, 
+    apiKey: api_key, 
+    message: process.env.PLATFORM_SENDGRID_API_KEY ? 'Check your email to verify your account' : 'Account created successfully',
+    requiresVerification: !!process.env.PLATFORM_SENDGRID_API_KEY
+  });
 });
 
 app.post("/v1/auth/login", async (req, res) => {
@@ -320,7 +326,7 @@ app.post("/v1/auth/verify", async (req, res) => {
   
   const db = getDb();
   const result = await db.query(
-    'UPDATE workspaces SET email_verified = true, verification_token = null WHERE verification_token = $1 RETURNING workspace_id',
+    'UPDATE workspaces SET email_verified = true, verification_token = null WHERE verification_token = $1 RETURNING workspace_id, owner_email, api_key',
     [token]
   );
   
@@ -328,7 +334,15 @@ app.post("/v1/auth/verify", async (req, res) => {
     return res.status(400).json({ error: "invalid or expired token" });
   }
   
-  res.json({ message: "Email verified successfully" });
+  const workspace = result.rows[0];
+  const authToken = jwt.sign({ workspace_id: workspace.workspace_id, email: workspace.owner_email }, JWT_SECRET, { expiresIn: '30d' });
+  
+  res.json({ 
+    message: "Email verified successfully",
+    token: authToken,
+    apiKey: workspace.api_key,
+    workspace_id: workspace.workspace_id
+  });
 });
 
 app.post("/v1/auth/forgot-password", async (req, res) => {
