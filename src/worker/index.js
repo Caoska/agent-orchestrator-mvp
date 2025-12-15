@@ -4,7 +4,8 @@ import dotenv from "dotenv";
 import { executeHttpTool, executeSendGridTool, executeWebhookTool, executeDelayTool, executeConditionalTool, executeTransformTool, executeDatabaseTool, executeLLMTool, executeTwilioTool } from "../../lib/tools.js";
 import { initDb } from "../../lib/db.js";
 import * as data from "../../lib/data.js";
-import { trackAgentRun } from "../../lib/metrics.js";
+import { trackAgentRun, updateQueueDepth } from "../../lib/metrics.js";
+import { logger } from "../../lib/logger.js";
 
 dotenv.config();
 console.log('Worker env check:', {
@@ -200,6 +201,17 @@ const worker = new Worker(
   QUEUE_NAME,
   async job => {
     const { run_id, agent_id, project_id, input, scheduled } = job.data;
+    const jobLogger = logger.child({ runId: run_id, agentId: agent_id });
+    
+    jobLogger.info('Processing job started', { scheduled });
+    
+    // Update queue depth metric
+    try {
+      const queueDepth = await connection.llen(`bull:${QUEUE_NAME}:waiting`);
+      updateQueueDepth(QUEUE_NAME, queueDepth);
+    } catch (error) {
+      jobLogger.warn('Failed to update queue metrics', { error: error.message });
+    }
     
     // For scheduled jobs, create a new run
     let actualRunId = run_id;
@@ -216,6 +228,7 @@ const worker = new Worker(
       };
       await data.createRun(run);
       await connection.set(`run:${actualRunId}`, JSON.stringify(run));
+      jobLogger.info('Created scheduled run', { newRunId: actualRunId });
     }
     
     console.log("Worker: processing run", actualRunId, scheduled ? "(scheduled)" : "");

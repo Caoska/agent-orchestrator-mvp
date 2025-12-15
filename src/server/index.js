@@ -15,7 +15,10 @@ import { TEMPLATES, getTemplate } from "../../lib/templates.js";
 import { generateWebhookSecret } from "../../lib/webhooks.js";
 import { rateLimit } from "../../lib/ratelimit.js";
 import { verificationEmail, passwordResetEmail } from "../../lib/email-templates.js";
-import { metricsMiddleware, register } from "../../lib/metrics.js";
+import { metricsMiddleware, register, updateQueueDepth, updateDbConnections } from "../../lib/metrics.js";
+import { correlationMiddleware, errorHandler } from "../../lib/middleware.js";
+import { checkHealth } from "../../lib/health.js";
+import { logger } from "../../lib/logger.js";
 
 dotenv.config();
 
@@ -221,6 +224,7 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
   credentials: true
 }));
+app.use(correlationMiddleware);
 app.use(metricsMiddleware);
 app.use(bodyParser.json());
 app.use(express.static('public'));
@@ -820,11 +824,49 @@ app.post("/v1/billing-portal", requireApiKey, requireWorkspace, async (req, res)
   }
 });
 
-app.get("/health", (req,res)=> res.json({ ok: true }));
+app.get("/health", async (req, res) => {
+  try {
+    const health = await checkHealth();
+    const statusCode = health.status === 'healthy' ? 200 : 
+                      health.status === 'degraded' ? 200 : 503;
+    res.status(statusCode).json(health);
+  } catch (error) {
+    req.logger?.error('Health check failed', { error: error.message });
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 app.get("/metrics", async (req, res) => {
   res.set('Content-Type', register.contentType);
   res.end(await register.metrics());
 });
 
-app.listen(PORT, () => console.log(`Agent Orchestrator API listening on ${PORT}`));
+// Monitor queue depth every 30 seconds
+setInterval(async () => {
+  try {
+    const connection = new IORedis(REDIS_URL);
+    const depth = await connection.llen('bull:runs:waiting');
+    updateQueueDepth('runs', depth);
+    
+    // Monitor DB connections if available
+    const db = getDb();
+    if (db && db.totalCount) {
+      updateDbConnections(db.totalCount - db.idleCount, db.idleCount);
+    }
+    
+    await connection.quit();
+  } catch (error) {
+    logger.error('Failed to update metrics', { error: error.message });
+  }
+}, 30000);
+
+// Error handler (must be last)
+app.use(errorHandler);
+
+app.listen(PORT, () => {
+  logger.info('Agent Orchestrator API started', { port: PORT });
+});
