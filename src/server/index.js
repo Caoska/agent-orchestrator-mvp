@@ -263,7 +263,7 @@ app.post("/v1/auth/signup", async (req, res) => {
   if (existing) return res.status(400).json({ error: "email already exists" });
   
   const workspace_id = "ws_" + uuidv4();
-  const api_key = "sk_test_" + uuidv4();
+  const api_key = (process.env.NODE_ENV === 'production' ? "sk_live_" : "sk_test_") + uuidv4();
   const password_hash = await bcrypt.hash(password, 10);
   const verification_token = uuidv4();
   
@@ -275,7 +275,7 @@ app.post("/v1/auth/signup", async (req, res) => {
     password_hash,
     plan: 'free', 
     runs_this_month: 0,
-    email_verified: !process.env.PLATFORM_SENDGRID_API_KEY, // Auto-verify only if no SendGrid
+    email_verified: process.env.NODE_ENV !== 'production' && !process.env.PLATFORM_SENDGRID_API_KEY, // Auto-verify only in dev
     verification_token,
     created_at: new Date().toISOString() 
   };
@@ -466,7 +466,7 @@ app.post("/v1/workspaces", async (req, res) => {
   if (!name) return res.status(400).json({ error: "missing name" });
   
   const workspace_id = "ws_" + uuidv4();
-  const api_key = "sk_test_" + uuidv4();
+  const api_key = (process.env.NODE_ENV === 'production' ? "sk_live_" : "sk_test_") + uuidv4();
   const ws = { workspace_id, name, owner_email, api_key, plan: 'free', runs_this_month: 0, created_at: new Date().toISOString() };
   
   await data.createWorkspace(ws);
@@ -773,7 +773,7 @@ app.patch("/v1/workspace/settings", requireApiKey, requireWorkspace, async (req,
 });
 
 app.post("/v1/workspace/regenerate-key", requireApiKey, requireWorkspace, async (req, res) => {
-  const newApiKey = "sk_test_" + uuidv4();
+  const newApiKey = (process.env.NODE_ENV === 'production' ? "sk_live_" : "sk_test_") + uuidv4();
   await data.updateWorkspace(req.workspace.workspace_id, { api_key: newApiKey });
   res.json({ api_key: newApiKey });
 });
