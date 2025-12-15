@@ -275,7 +275,7 @@ for (const template of templates) {
 await test('Test oversized input (400 error)', async () => {
   const largeInput = { data: 'x'.repeat(60000) }; // >50KB
   
-  const res = await fetch(`${API_URL}/v1/agents/${agentIds.http}/run`, {
+  const res = await fetch(`${API_URL}/v1/agents/${agentIds.delay}/run`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
