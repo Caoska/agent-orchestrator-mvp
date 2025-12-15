@@ -258,6 +258,11 @@ app.get('/features', (req, res) => {
   res.sendFile(join(__dirname, '../../public/features.html'));
 });
 
+// Migration guide from Zapier
+app.get('/migrate-from-zapier', (req, res) => {
+  res.sendFile(join(__dirname, '../../public/migrate-from-zapier.html'));
+});
+
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const QUEUE_NAME = process.env.QUEUE_NAME || "runs";
 const PORT = process.env.PORT || 4000;

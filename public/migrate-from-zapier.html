@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migrate from Zapier to SiloWorker - Save 80% with BYOC</title>
+    <meta name="description" content="Complete migration guide from Zapier to SiloWorker. Database queries, complex conditionals, and 80% cost savings with BYOC pricing.">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; margin: 0; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; border-radius: 12px; }
+        .comparison-table { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin: 30px 0; }
+        .comparison-header { font-weight: 600; padding: 15px; text-align: center; border-radius: 8px 8px 0 0; }
+        .zapier-col { background: #ff6b35; color: white; }
+        .siloworker-col { background: #10b981; color: white; }
+        .feature-col { background: #f3f4f6; color: #374151; }
+        .comparison-row { display: contents; }
+        .comparison-cell { padding: 15px; border-bottom: 1px solid #e5e7eb; }
+        .zapier-cell { background: #fef2f2; }
+        .siloworker-cell { background: #f0fdf4; }
+        .feature-cell { background: #f9fafb; font-weight: 500; }
+        .code-example { background: #1f2937; color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; font-family: 'SF Mono', Monaco, monospace; font-size: 14px; overflow-x: auto; }
+        .savings-calc { background: #ecfdf5; border: 2px solid #10b981; border-radius: 12px; padding: 30px; margin: 40px 0; text-align: center; }
+        .migration-step { background: #f8fafc; border-left: 4px solid #3b82f6; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+        .pro-tip { background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0; }
+        .highlight { background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+        .pain-point { background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Migrate from Zapier to SiloWorker</h1>
+        <p>Database queries, complex conditionals, and 80% cost savings with BYOC</p>
+    </div>
+
+    <h2>🚨 Why Developers Are Leaving Zapier</h2>
+    
+    <div class="pain-point">
+        <strong>❌ No Database Access:</strong> Can't query your PostgreSQL, MySQL, or other databases directly
+    </div>
+    
+    <div class="pain-point">
+        <strong>❌ Limited Conditional Logic:</strong> Basic if/then only - no complex multi-condition logic
+    </div>
+    
+    <div class="pain-point">
+        <strong>❌ Expensive Email/SMS:</strong> $20-30/month in overages for moderate usage
+    </div>
+    
+    <div class="pain-point">
+        <strong>❌ No API-First Design:</strong> GUI-dependent, hard to version control or automate
+    </div>
+
+    <h2>📊 Feature Comparison</h2>
+    
+    <div class="comparison-table">
+        <div class="comparison-header feature-col">Feature</div>
+        <div class="comparison-header zapier-col">Zapier</div>
+        <div class="comparison-header siloworker-col">SiloWorker</div>
+        
+        <div class="comparison-row">
+            <div class="comparison-cell feature-cell">Database Queries</div>
+            <div class="comparison-cell zapier-cell">❌ No direct database access</div>
+            <div class="comparison-cell siloworker-cell">✅ Full SQL support (PostgreSQL, MySQL, SQLite)</div>
+        </div>
+        
+        <div class="comparison-row">
+            <div class="comparison-cell feature-cell">Conditional Logic</div>
+            <div class="comparison-cell zapier-cell">❌ Basic if/then only</div>
+            <div class="comparison-cell siloworker-cell">✅ Complex multi-condition logic with AND/OR</div>
+        </div>
+        
+        <div class="comparison-row">
+            <div class="comparison-cell feature-cell">Email Integration</div>
+            <div class="comparison-cell zapier-cell">❌ Limited, expensive overages</div>
+            <div class="comparison-cell siloworker-cell">✅ SendGrid + BYOC = unlimited with your key</div>
+        </div>
+        
+        <div class="comparison-row">
+            <div class="comparison-cell feature-cell">SMS Integration</div>
+            <div class="comparison-cell zapier-cell">❌ Very expensive per message</div>
+            <div class="comparison-cell siloworker-cell">✅ Twilio + BYOC = your rates</div>
+        </div>
+        
+        <div class="comparison-row">
+            <div class="comparison-cell feature-cell">API Access</div>
+            <div class="comparison-cell zapier-cell">❌ Limited API, GUI-focused</div>
+            <div class="comparison-cell siloworker-cell">✅ API-first with full OpenAPI spec</div>
+        </div>
+        
+        <div class="comparison-row">
+            <div class="comparison-cell feature-cell">LLM Integration</div>
+            <div class="comparison-cell zapier-cell">❌ Basic ChatGPT only</div>
+            <div class="comparison-cell siloworker-cell">✅ OpenAI, Anthropic, local models</div>
+        </div>
+        
+        <div class="comparison-row">
+            <div class="comparison-cell feature-cell">Version Control</div>
+            <div class="comparison-cell zapier-cell">❌ No git integration</div>
+            <div class="comparison-cell siloworker-cell">✅ JSON configs, git-friendly</div>
+        </div>
+    </div>
+
+    <div class="savings-calc">
+        <h2>💰 BYOC Cost Savings Calculator</h2>
+        <p><strong>Scenario:</strong> E-commerce site with 10,000 order confirmations + 1,000 SMS notifications monthly</p>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 30px 0;">
+            <div>
+                <h3>Zapier Professional</h3>
+                <p>Base Plan: <strong>$49/month</strong><br>
+                Email overages (8,000): <strong>$20/month</strong><br>
+                SMS overages (500): <strong>$25/month</strong><br>
+                <strong style="font-size: 1.2em; color: #dc2626;">Total: $94/month</strong></p>
+            </div>
+            <div>
+                <h3>SiloWorker + BYOC</h3>
+                <p>Starter Plan: <strong>$19/month</strong><br>
+                SendGrid (your key): <strong>$0</strong><br>
+                Twilio (your key): <strong>$0</strong><br>
+                <strong style="font-size: 1.2em; color: #059669;">Total: $19/month</strong></p>
+            </div>
+        </div>
+        
+        <div class="highlight" style="font-size: 1.1em; padding: 10px 20px;">
+            Save $75/month (80% savings) = $900/year
+        </div>
+    </div>
+
+    <h2>🔄 Migration Examples</h2>
+
+    <h3>Example 1: User Onboarding with Database Check</h3>
+    
+    <h4>❌ Zapier Limitation:</h4>
+    <div class="code-example">
+# Zapier can't do this - no database access
+1. New user signs up (webhook)
+2. ❌ Can't check if user exists in database
+3. ❌ Can't query user preferences from database
+4. Send generic welcome email
+    </div>
+
+    <h4>✅ SiloWorker Solution:</h4>
+    <div class="code-example">
+# Complete workflow with database integration
+1. Webhook: New user signup
+2. Database Tool: SELECT * FROM users WHERE email = '{{user.email}}'
+3. Conditional Tool: IF user.plan === 'enterprise' THEN premium_onboarding
+4. SendGrid Tool: Send personalized email with user.preferences
+    </div>
+
+    <h3>Example 2: Complex Order Processing</h3>
+    
+    <h4>❌ Zapier Limitation:</h4>
+    <div class="code-example">
+# Zapier's basic conditional logic
+IF order.amount > 100 THEN send_email
+# Can't handle: (amount > 100 AND region = 'US') OR (vip_customer = true)
+    </div>
+
+    <h4>✅ SiloWorker Solution:</h4>
+    <div class="code-example">
+# Complex multi-condition logic
+1. Webhook: New order received
+2. Database Tool: SELECT customer_tier, region FROM customers WHERE id = {{order.customer_id}}
+3. Conditional Tool: 
+   IF (order.amount > 100 AND customer.region = 'US') 
+   OR (customer.tier = 'VIP') 
+   OR (order.items.includes('premium'))
+   THEN priority_processing
+   ELSE standard_processing
+4. Multiple parallel actions based on conditions
+    </div>
+
+    <h2>🚀 Step-by-Step Migration Guide</h2>
+
+    <div class="migration-step">
+        <h3>Step 1: Audit Your Current Zapier Workflows</h3>
+        <p>List all your Zaps and identify:</p>
+        <ul>
+            <li>Workflows that need database access</li>
+            <li>Complex conditional logic requirements</li>
+            <li>High email/SMS usage (check your Zapier bill)</li>
+            <li>API integrations that could be simplified</li>
+        </ul>
+    </div>
+
+    <div class="migration-step">
+        <h3>Step 2: Set Up SiloWorker Account</h3>
+        <div class="code-example">
+# Sign up and get API key
+curl -X POST https://api.siloworker.com/v1/auth/signup \
+  -d '{"email": "you@company.com", "password": "secure123"}'
+
+# Get your API key from dashboard
+export SILOWORKER_API_KEY="sk_live_..."
+        </div>
+    </div>
+
+    <div class="migration-step">
+        <h3>Step 3: Configure BYOC Credentials</h3>
+        <div class="code-example">
+# Add your SendGrid API key (unlimited emails)
+curl -X POST https://api.siloworker.com/v1/workspace/credentials \
+  -H "Authorization: Bearer $SILOWORKER_API_KEY" \
+  -d '{"type": "sendgrid", "api_key": "SG.your_key_here"}'
+
+# Add your Twilio credentials (your SMS rates)
+curl -X POST https://api.siloworker.com/v1/workspace/credentials \
+  -d '{"type": "twilio", "account_sid": "AC...", "auth_token": "..."}'
+        </div>
+    </div>
+
+    <div class="migration-step">
+        <h3>Step 4: Create Your First Workflow</h3>
+        <div class="code-example">
+# Create agent with database + email workflow
+curl -X POST https://api.siloworker.com/v1/agents \
+  -H "Authorization: Bearer $SILOWORKER_API_KEY" \
+  -d '{
+    "name": "User Onboarding",
+    "tools": [
+      {
+        "type": "database",
+        "config": {
+          "connection_string": "postgresql://...",
+          "query": "SELECT * FROM users WHERE email = {{input.email}}"
+        }
+      },
+      {
+        "type": "conditional",
+        "config": {
+          "condition": "user.plan === \"enterprise\"",
+          "true_path": "premium_onboarding",
+          "false_path": "standard_onboarding"
+        }
+      },
+      {
+        "type": "sendgrid",
+        "config": {
+          "template_id": "d-abc123",
+          "to": "{{input.email}}",
+          "dynamic_template_data": {
+            "name": "{{user.name}}",
+            "plan": "{{user.plan}}"
+          }
+        }
+      }
+    ]
+  }'
+        </div>
+    </div>
+
+    <div class="migration-step">
+        <h3>Step 5: Test and Deploy</h3>
+        <div class="code-example">
+# Test your workflow
+curl -X POST https://api.siloworker.com/v1/agents/{agent_id}/run \
+  -H "Authorization: Bearer $SILOWORKER_API_KEY" \
+  -d '{"email": "test@example.com"}'
+
+# Set up webhook endpoint for production
+curl -X POST https://api.siloworker.com/v1/agents/{agent_id}/webhook
+        </div>
+    </div>
+
+    <div class="pro-tip">
+        <strong>💡 Pro Tip:</strong> Start with your most expensive Zapier workflow first. The BYOC savings will often pay for your entire SiloWorker subscription while giving you more powerful features.
+    </div>
+
+    <h2>🎯 Common Migration Patterns</h2>
+
+    <h3>Pattern 1: Zapier "Formatter" → SiloWorker Transform Tool</h3>
+    <div class="code-example">
+// Instead of Zapier's limited formatter
+// Use JavaScript transformation
+const result = {
+  fullName: `${input.firstName} ${input.lastName}`.trim(),
+  email: input.email.toLowerCase(),
+  phone: input.phone.replace(/\D/g, ''),
+  signupDate: new Date().toISOString()
+};
+    </div>
+
+    <h3>Pattern 2: Zapier "Filter" → SiloWorker Conditional Tool</h3>
+    <div class="code-example">
+// Complex conditions Zapier can't handle
+IF (user.lastLogin < '2024-01-01' AND user.plan !== 'free') 
+OR (user.supportTickets > 5 AND user.plan === 'enterprise')
+THEN send_retention_campaign
+    </div>
+
+    <h3>Pattern 3: Multiple Zaps → Single SiloWorker Workflow</h3>
+    <div class="code-example">
+// Replace 3 separate Zaps with 1 workflow:
+// 1. Webhook → Database check → Conditional logic → Multiple actions
+// All in one workflow with proper error handling and monitoring
+    </div>
+
+    <div style="text-align: center; margin: 50px 0; padding: 40px; background: #f0f9ff; border-radius: 12px;">
+        <h2>Ready to Save 80% and Get More Features?</h2>
+        <p style="font-size: 1.1em; margin: 20px 0;">Join developers who've already migrated from Zapier</p>
+        <p>
+            <a href="https://siloworker.dev" style="background: #0366d6; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; margin-right: 20px;">Start Free Migration</a>
+            <a href="/docs" style="color: #0366d6; text-decoration: none; font-weight: 500;">View API Docs</a>
+        </p>
+        <p style="color: #6b7280; margin-top: 20px;">
+            <small>Questions? Email support@siloworker.com for migration assistance</small>
+        </p>
+    </div>
+</body>
+</html>
