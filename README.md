@@ -67,17 +67,17 @@ docker-compose up --build
 - `PLATFORM_SENDGRID_API_KEY` - Email notifications
 - `PLATFORM_TWILIO_*` - SMS notifications
 
-## 💰 Pricing Tiers
+## 💰 Pricing
 
-| Plan | Monthly Runs | Emails | SMS | Price |
-|------|-------------|--------|-----|-------|
-| Free | 200 | 100 | 100 | $0 |
-| Starter | 5,000 | 1,000 | 500 | $19 |
-| Pro | 50,000 | 10,000 | 5,000 | $49 |
-| Scale | 500,000 | 100,000 | 50,000 | $199 |
-| Enterprise | Unlimited | Unlimited | Unlimited | Custom |
+Pricing tiers and usage limits are currently being finalized. 
 
-**Usage alerts automatically sent at 80%, 90%, and 95% of monthly limits.**
+**Current Development Features:**
+- Usage monitoring and threshold notifications
+- Multiple plan support with automatic limit enforcement  
+- BYOC (Bring Your Own Credentials) support for cost optimization
+- Enhanced error responses with usage context
+
+Contact for early access and pricing information.
 
 ## 🔗 API Documentation
 
