@@ -280,4 +280,44 @@ await test('Delete workspace', async () => {
   await apiCall('DELETE', '/v1/workspace');
 });
 
+// Error path tests
+await test('Test oversized input (400 error)', async () => {
+  const largeInput = { data: 'x'.repeat(60000) }; // >50KB
+  
+  const res = await fetch(`${API_URL}/v1/agents/${agentIds.http}/run`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({ input: largeInput })
+  });
+
+  if (res.status !== 400) {
+    throw new Error(`Expected 400 for oversized input, got ${res.status}`);
+  }
+  
+  const error = await res.json();
+  if (error.error !== 'Input too large (max 50KB)') {
+    throw new Error(`Wrong error message: ${error.error}`);
+  }
+});
+
+await test('Test workspace usage tracking', async () => {
+  const res = await fetch(`${API_URL}/v1/workspace`, {
+    headers: { 'Authorization': `Bearer ${apiKey}` }
+  });
+  
+  if (!res.ok) throw new Error(`Workspace fetch failed: ${res.status}`);
+  const workspace = await res.json();
+  
+  if (typeof workspace.runs_this_month !== 'number') {
+    throw new Error('Missing runs_this_month in workspace response');
+  }
+  if (!workspace.plan) {
+    throw new Error('Missing plan in workspace response');
+  }
+  console.log(`   Usage: ${workspace.runs_this_month} runs, plan: ${workspace.plan}`);
+});
+
 console.log('\n🎉 All tests passed!');
