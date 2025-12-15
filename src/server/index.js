@@ -7,6 +7,10 @@ import IORedis from "ioredis";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import swaggerUi from "swagger-ui-express";
+import YAML from "yamljs";
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { initDb, getDb } from "../../lib/db.js";
 import * as data from "../../lib/data.js";
 import { scheduleRun, removeSchedule, listSchedules } from "../../lib/scheduler.js";
@@ -228,6 +232,26 @@ app.use(correlationMiddleware);
 app.use(metricsMiddleware);
 app.use(bodyParser.json());
 app.use(express.static('public'));
+
+// Load OpenAPI spec and serve API docs
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const swaggerDocument = YAML.load(join(__dirname, '../../openapi.yaml'));
+
+// Public API documentation
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  customSiteTitle: 'SiloWorker API Documentation',
+  customCss: '.swagger-ui .topbar { display: none }',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true
+  }
+}));
+
+// API spec endpoint
+app.get('/api-docs', (req, res) => {
+  res.json(swaggerDocument);
+});
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const QUEUE_NAME = process.env.QUEUE_NAME || "runs";
