@@ -354,8 +354,6 @@ app.get("/v1/auth/verify/:token", async (req, res) => {
     }
     return res.redirect(`${process.env.FRONTEND_URL}/verify?error=invalid_token`);
   }
-    return res.redirect(`${process.env.FRONTEND_URL}/verify?error=invalid_token`);
-  }
   
   const workspace = result.rows[0];
   const authToken = jwt.sign({ workspace_id: workspace.workspace_id, email: workspace.owner_email }, JWT_SECRET, { expiresIn: '30d' });
