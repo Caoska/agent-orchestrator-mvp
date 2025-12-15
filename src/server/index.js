@@ -530,6 +530,11 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
   
   if (!Array.isArray(steps)) return res.status(400).json({ error: "steps required" });
   
+  // Input size limits
+  if (steps.length > 50) return res.status(400).json({ error: "Maximum 50 steps per workflow" });
+  if (name && name.length > 200) return res.status(400).json({ error: "Name too long (max 200 chars)" });
+  if (JSON.stringify(steps).length > 100000) return res.status(400).json({ error: "Workflow definition too large (max 100KB)" });
+  
   const agent_id = "agent_" + uuidv4();
   const webhook_secret = generateWebhookSecret();
   const agent = { agent_id, project_id, name, steps, retry_policy, timeout_seconds, webhook_secret, created_at: new Date().toISOString() };
@@ -577,6 +582,13 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
     return res.status(403).json({ error: "access denied" });
   }
   
+  // Input size limits
+  if (steps && Array.isArray(steps)) {
+    if (steps.length > 50) return res.status(400).json({ error: "Maximum 50 steps per workflow" });
+    if (JSON.stringify(steps).length > 100000) return res.status(400).json({ error: "Workflow definition too large (max 100KB)" });
+  }
+  if (name && name.length > 200) return res.status(400).json({ error: "Name too long (max 200 chars)" });
+  
   await data.updateAgent(req.params.id, { name, steps, retry_policy, timeout_seconds });
   res.json({ updated: true });
 });
@@ -589,6 +601,11 @@ app.post("/v1/runs", requireApiKey, requireWorkspace, rateLimit(60000, 100), asy
   const project = await data.getProject(agent.project_id);
   if (!project || project.workspace_id !== req.workspace.workspace_id) {
     return res.status(403).json({ error: "access denied" });
+  }
+  
+  // Input size limits
+  if (JSON.stringify(input).length > 50000) {
+    return res.status(400).json({ error: "Input too large (max 50KB)" });
   }
   
   // Check usage limits
