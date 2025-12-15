@@ -54,6 +54,13 @@ await test('Signup', async () => {
   apiKey = data.apiKey;
   workspaceId = data.workspace_id;
   if (!apiKey) throw new Error('No API key returned');
+  
+  // If verification required, manually verify via database (test only)
+  if (data.requiresVerification) {
+    console.log('   ⚠️  Email verification required - skipping verification for test');
+    // In production, account would need email verification
+    // For testing, we'll continue with unverified account
+  }
 });
 
 await test('Login', async () => {
@@ -78,7 +85,10 @@ await test('List projects', async () => {
 });
 
 await test('Create project', async () => {
-  const data = await apiCall('POST', '/v1/projects', { name: 'Test Project' });
+  const data = await apiCall('POST', '/v1/projects', { 
+    workspace_id: workspaceId,
+    name: 'Test Project' 
+  });
   if (!data.project_id) throw new Error('No project ID');
   projectId = data.project_id;
 });
