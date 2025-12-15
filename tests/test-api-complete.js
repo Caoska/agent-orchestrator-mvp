@@ -10,6 +10,18 @@ let runIds = [];
 const testEmail = `test-${Date.now()}@example.com`;
 const testPassword = 'testpass123';
 
+// Cleanup on exit (even if tests fail)
+process.on('beforeExit', async () => {
+  if (apiKey) {
+    try {
+      await apiCall('DELETE', '/v1/workspace');
+      console.log('\n🧹 Cleaned up test workspace');
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+  }
+});
+
 async function test(name, fn) {
   try {
     await fn();
