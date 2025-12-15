@@ -867,6 +867,39 @@ setInterval(async () => {
 // Error handler (must be last)
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+// Graceful shutdown handling
+let server;
+
+function gracefulShutdown(signal) {
+  logger.info('Received shutdown signal', { signal });
+  
+  if (server) {
+    server.close(() => {
+      logger.info('HTTP server closed');
+      
+      // Close database connections
+      const db = getDb();
+      if (db) {
+        db.end(() => {
+          logger.info('Database connections closed');
+          process.exit(0);
+        });
+      } else {
+        process.exit(0);
+      }
+    });
+    
+    // Force exit after 10 seconds
+    setTimeout(() => {
+      logger.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+server = app.listen(PORT, () => {
   logger.info('Agent Orchestrator API started', { port: PORT });
 });
