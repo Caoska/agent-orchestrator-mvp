@@ -4,6 +4,11 @@ info:
   description: |
     SiloWorker is a workflow automation platform that lets you build, deploy, and run automated workflows using a visual builder.
     
+    ## Links
+    - 🌟 **[Features & Examples](/features)** - See all 9 tools with code examples
+    - 📂 **[GitHub Repository](https://github.com/Caoska/agent-orchestrator-mvp)** - Open source examples and integration guides
+    - 🚀 **[Try SiloWorker](https://siloworker.dev)** - Get started with free account
+    
     ## Authentication
     Most endpoints require an API key obtained after signup. Include it in the Authorization header:
     ```
