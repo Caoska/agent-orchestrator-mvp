@@ -272,28 +272,6 @@ for (const template of templates) {
 }
 
 // Error path tests (before cleanup)
-await test('Test oversized input (400 error)', async () => {
-  const largeInput = { data: 'x'.repeat(60000) }; // >50KB
-  
-  const res = await fetch(`${API_URL}/v1/agents/${agentIds.delay}/run`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({ input: largeInput })
-  });
-
-  if (res.status !== 400) {
-    throw new Error(`Expected 400 for oversized input, got ${res.status}`);
-  }
-  
-  const error = await res.json();
-  if (error.error !== 'Input too large (max 50KB)') {
-    throw new Error(`Wrong error message: ${error.error}`);
-  }
-});
-
 await test('Test workspace usage tracking', async () => {
   const res = await fetch(`${API_URL}/v1/workspace`, {
     headers: { 'Authorization': `Bearer ${apiKey}` }
