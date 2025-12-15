@@ -263,6 +263,17 @@ app.get('/migrate-from-zapier', (req, res) => {
   res.sendFile(join(__dirname, '../../public/migrate-from-zapier.html'));
 });
 
+// SEO files
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml');
+  res.sendFile(join(__dirname, '../../public/sitemap.xml'));
+});
+
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.sendFile(join(__dirname, '../../public/robots.txt'));
+});
+
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const QUEUE_NAME = process.env.QUEUE_NAME || "runs";
 const PORT = process.env.PORT || 4000;

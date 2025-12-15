@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+
+# Important pages for crawling
+Allow: /features
+Allow: /docs
+Allow: /migrate-from-zapier
+Allow: /api-docs
+Allow: /health
+
+# Block sensitive endpoints
+Disallow: /v1/auth/
+Disallow: /v1/workspace/
+Disallow: /v1/agents/
+Disallow: /v1/runs/
+
+# Sitemap location
+Sitemap: https://api.siloworker.com/sitemap.xml
+
+# Crawl delay (be nice to our servers)
+Crawl-delay: 1
