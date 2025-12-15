@@ -15,6 +15,7 @@ import { TEMPLATES, getTemplate } from "../../lib/templates.js";
 import { generateWebhookSecret } from "../../lib/webhooks.js";
 import { rateLimit } from "../../lib/ratelimit.js";
 import { verificationEmail, passwordResetEmail } from "../../lib/email-templates.js";
+import { metricsMiddleware, register } from "../../lib/metrics.js";
 
 dotenv.config();
 
@@ -220,6 +221,7 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
   credentials: true
 }));
+app.use(metricsMiddleware);
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
@@ -819,5 +821,10 @@ app.post("/v1/billing-portal", requireApiKey, requireWorkspace, async (req, res)
 });
 
 app.get("/health", (req,res)=> res.json({ ok: true }));
+
+app.get("/metrics", async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
 
 app.listen(PORT, () => console.log(`Agent Orchestrator API listening on ${PORT}`));

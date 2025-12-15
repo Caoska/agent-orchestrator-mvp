@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { executeHttpTool, executeSendGridTool, executeWebhookTool, executeDelayTool, executeConditionalTool, executeTransformTool, executeDatabaseTool, executeLLMTool, executeTwilioTool } from "../../lib/tools.js";
 import { initDb } from "../../lib/db.js";
 import * as data from "../../lib/data.js";
+import { trackAgentRun } from "../../lib/metrics.js";
 
 dotenv.config();
 console.log('Worker env check:', {
@@ -269,6 +270,9 @@ const worker = new Worker(
         await checkUsageThresholds(project.workspace_id);
       }
       
+      // Track metrics
+      trackAgentRun("completed", project.workspace_id, executionSeconds);
+      
       // Save to both Redis and DB
       await connection.set(`run:${actualRunId}`, JSON.stringify(run));
       await data.updateRun(actualRunId, {
@@ -282,6 +286,14 @@ const worker = new Worker(
       run.error = error.message;
       run.completed_at = new Date().toISOString();
       run.results = { steps: stepLogs };
+      
+      // Track failed run metrics
+      const executionSeconds = Math.ceil((Date.now() - runStart) / 1000);
+      const projectData = await connection.get(`project:${run.project_id}`);
+      if (projectData) {
+        const project = JSON.parse(projectData);
+        trackAgentRun("failed", project.workspace_id, executionSeconds);
+      }
       
       await connection.set(`run:${actualRunId}`, JSON.stringify(run));
       await data.updateRun(actualRunId, {
