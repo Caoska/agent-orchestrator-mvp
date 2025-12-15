@@ -204,7 +204,7 @@ await test('Create schedule', async () => {
 
 await test('List schedules', async () => {
   const data = await apiCall('GET', '/v1/schedules');
-  if (!Array.isArray(data)) throw new Error('Not an array');
+  if (!Array.isArray(data.schedules)) throw new Error('Not an array');
 });
 
 await test('Delete schedule', async () => {
