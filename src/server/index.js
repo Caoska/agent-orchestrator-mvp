@@ -253,6 +253,11 @@ app.get('/api-docs', (req, res) => {
   res.json(swaggerDocument);
 });
 
+// Features page
+app.get('/features', (req, res) => {
+  res.sendFile(join(__dirname, '../../public/features.html'));
+});
+
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const QUEUE_NAME = process.env.QUEUE_NAME || "runs";
 const PORT = process.env.PORT || 4000;
