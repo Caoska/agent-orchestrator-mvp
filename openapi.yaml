@@ -10,12 +10,18 @@ info:
     Authorization: Bearer sk_live_your_api_key
     ```
     
-    ## Rate Limits
-    - Free: 100 runs/month, 10 emails, 10 SMS
-    - Starter: 5,000 runs/month, 100 emails, 50 SMS
-    - Pro: 50,000 runs/month, 1,000 emails, 500 SMS
-    - Scale: 500,000 runs/month, 10,000 emails, 5,000 SMS
+    ## Rate Limits & Usage Notifications
+    - Free: 200 runs/month, 100 emails, 100 SMS
+    - Starter: 5,000 runs/month, 1,000 emails, 500 SMS  
+    - Pro: 50,000 runs/month, 10,000 emails, 5,000 SMS
+    - Scale: 500,000 runs/month, 100,000 emails, 50,000 SMS
     - Enterprise: Unlimited with custom keys
+    
+    **Usage alerts sent at 80%, 90%, and 95% of monthly limits.**
+    
+    ## Monitoring & Metrics
+    - `/health` - Service health check
+    - `/metrics` - Prometheus metrics for monitoring
   version: 1.0.0
   contact:
     email: support@siloworker.com
@@ -416,6 +422,35 @@ paths:
                     enum: [queued, running, completed, failed]
                   results:
                     type: object
+        '400':
+          description: Bad request (input too large)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Input too large (max 50KB)"
+        '402':
+          description: Usage limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "run limit reached"
+                  current_usage:
+                    type: integer
+                    example: 195
+                  plan_limit:
+                    type: integer
+                    example: 200
+                  upgrade_url:
+                    type: string
+                    example: "/upgrade"
     get:
       tags: [Runs]
       summary: List runs
@@ -677,6 +712,23 @@ paths:
                 properties:
                   ok:
                     type: boolean
+
+  /metrics:
+    get:
+      tags: [System]
+      summary: Prometheus metrics
+      description: Returns Prometheus-formatted metrics for monitoring
+      responses:
+        '200':
+          description: Metrics data
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP http_requests_total Total number of HTTP requests
+                  # TYPE http_requests_total counter
+                  http_requests_total{method="GET",route="/v1/workspace",status_code="200"} 42
 
 components:
   securitySchemes:
