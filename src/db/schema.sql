@@ -3,12 +3,21 @@ CREATE TABLE IF NOT EXISTS workspaces (
   name VARCHAR(255) NOT NULL,
   owner_email VARCHAR(255),
   api_key VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255),
+  email_verified BOOLEAN DEFAULT false,
+  verification_token VARCHAR(255),
+  reset_token VARCHAR(255),
+  reset_token_expires TIMESTAMP,
   plan VARCHAR(50) DEFAULT 'free',
   stripe_customer_id VARCHAR(255),
   stripe_subscription_id VARCHAR(255),
   runs_this_month INTEGER DEFAULT 0,
   emails_this_month INTEGER DEFAULT 0,
   sms_this_month INTEGER DEFAULT 0,
+  llm_api_key TEXT,
+  sendgrid_api_key TEXT,
+  twilio_account_sid VARCHAR(255),
+  twilio_auth_token VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
