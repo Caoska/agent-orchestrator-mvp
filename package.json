@@ -8,7 +8,7 @@
         "start": "node server.js",
         "worker": "node worker.js",
         "dev": "nodemon server.js",
-        "test": "node tests/test-api-complete.js"
+        "test": "node tests/test-api-complete.js && node tests/test-usage-limits.js"
     },
     "dependencies": {
         "bcrypt": "^6.0.0",

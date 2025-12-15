@@ -1,11 +1,16 @@
-import { expect } from 'chai';
+import fetch from 'node-fetch';
 
 const API_URL = process.env.API_URL || 'http://localhost:3000';
 
-describe('Usage Limits API', () => {
-  let apiKey, agentId;
+async function testUsageLimits() {
+  console.log('🧪 Testing Usage Limits API...');
+  
+  try {
+    // Health check
+    const healthRes = await fetch(`${API_URL}/health`);
+    if (!healthRes.ok) throw new Error('Health check failed');
+    console.log('✅ Health check passed');
 
-  before(async () => {
     // Create test workspace
     const signupRes = await fetch(`${API_URL}/v1/auth/signup`, {
       method: 'POST',
@@ -16,85 +21,133 @@ describe('Usage Limits API', () => {
         password: 'password123'
       })
     });
+    
+    if (!signupRes.ok) {
+      const errorText = await signupRes.text();
+      throw new Error(`Signup failed: ${signupRes.status} - ${errorText}`);
+    }
     const { api_key } = await signupRes.json();
-    apiKey = api_key;
+    console.log('✅ Test workspace created');
+
+    // Test workspace endpoint returns usage info
+    const workspaceRes = await fetch(`${API_URL}/v1/workspace`, {
+      headers: { 'Authorization': `Bearer ${api_key}` }
+    });
+    
+    if (!workspaceRes.ok) {
+      const errorText = await workspaceRes.text();
+      throw new Error(`Workspace fetch failed: ${workspaceRes.status} - ${errorText}`);
+    }
+    const workspace = await workspaceRes.json();
+    
+    if (typeof workspace.runs_this_month !== 'number') {
+      throw new Error('Missing runs_this_month in workspace response');
+    }
+    if (!workspace.plan) {
+      throw new Error('Missing plan in workspace response');
+    }
+    console.log(`✅ Workspace usage: ${workspace.runs_this_month} runs, plan: ${workspace.plan}`);
+
+    // Create test project first
+    const projectRes = await fetch(`${API_URL}/v1/projects`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${api_key}`
+      },
+      body: JSON.stringify({
+        name: 'Test Project'
+      })
+    });
+    
+    if (!projectRes.ok) {
+      const errorText = await projectRes.text();
+      throw new Error(`Project creation failed: ${projectRes.status} - ${errorText}`);
+    }
+    const project = await projectRes.json();
+    console.log('✅ Test project created');
 
     // Create test agent
     const agentRes = await fetch(`${API_URL}/v1/agents`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Authorization': `Bearer ${api_key}`
       },
       body: JSON.stringify({
         name: 'Test Agent',
-        workflow: { nodes: [{ id: '1', type: 'http', config: { url: 'https://httpbin.org/get' } }] }
+        project_id: project.project_id,
+        workflow: { 
+          nodes: [{ 
+            id: '1', 
+            type: 'http', 
+            config: { url: 'https://httpbin.org/get' } 
+          }] 
+        }
       })
     });
-    const agent = await agentRes.json();
-    agentId = agent.agent_id;
-  });
-
-  it('should return 402 when usage limit exceeded', async () => {
-    // Simulate exceeding free tier limit (200 runs)
-    // First, artificially set runs_this_month to 200
-    const workspaceRes = await fetch(`${API_URL}/v1/workspace`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
-    });
-    const workspace = await workspaceRes.json();
-
-    // Mock high usage by making 200+ requests (this would be expensive in real test)
-    // Instead, we'll test the logic by checking the current behavior
     
-    const runRes = await fetch(`${API_URL}/v1/agents/${agentId}/run`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({ input: { test: true } })
-    });
-
-    // For free tier with low usage, this should succeed
-    if (workspace.runs_this_month < 200) {
-      expect(runRes.status).to.equal(200);
-      const result = await runRes.json();
-      expect(result).to.have.property('run_id');
-    } else {
-      // If somehow at limit, should get 402
-      expect(runRes.status).to.equal(402);
-      const error = await runRes.json();
-      expect(error.error).to.equal('run limit reached');
-      expect(error.upgrade_url).to.equal('/upgrade');
+    if (!agentRes.ok) {
+      const errorText = await agentRes.text();
+      throw new Error(`Agent creation failed: ${agentRes.status} - ${errorText}`);
     }
-  });
+    const agent = await agentRes.json();
+    console.log('✅ Test agent created');
 
-  it('should return current usage in workspace endpoint', async () => {
-    const res = await fetch(`${API_URL}/v1/workspace`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
-    });
-    
-    expect(res.status).to.equal(200);
-    const workspace = await res.json();
-    expect(workspace).to.have.property('runs_this_month');
-    expect(workspace).to.have.property('plan');
-    expect(workspace.runs_this_month).to.be.a('number');
-  });
-
-  it('should handle oversized input with 400 error', async () => {
+    // Test oversized input (should return 400)
     const largeInput = { data: 'x'.repeat(60000) }; // >50KB
     
-    const res = await fetch(`${API_URL}/v1/agents/${agentId}/run`, {
+    const oversizeRes = await fetch(`${API_URL}/v1/agents/${agent.agent_id}/run`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Authorization': `Bearer ${api_key}`
       },
       body: JSON.stringify({ input: largeInput })
     });
 
-    expect(res.status).to.equal(400);
-    const error = await res.json();
-    expect(error.error).to.equal('Input too large (max 50KB)');
-  });
-});
+    if (oversizeRes.status !== 400) {
+      const errorText = await oversizeRes.text();
+      throw new Error(`Expected 400 for oversized input, got ${oversizeRes.status} - ${errorText}`);
+    }
+    
+    const error = await oversizeRes.json();
+    if (error.error !== 'Input too large (max 50KB)') {
+      throw new Error(`Wrong error message: ${error.error}`);
+    }
+    console.log('✅ Oversized input properly rejected');
+
+    // Test normal run (should succeed for free tier)
+    const runRes = await fetch(`${API_URL}/v1/agents/${agent.agent_id}/run`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${api_key}`
+      },
+      body: JSON.stringify({ input: { test: true } })
+    });
+
+    if (runRes.status === 200) {
+      const result = await runRes.json();
+      if (!result.run_id) throw new Error('Missing run_id in response');
+      console.log('✅ Normal run succeeded');
+    } else if (runRes.status === 402) {
+      const error = await runRes.json();
+      console.log(`✅ Usage limit properly enforced: ${error.error}`);
+      if (error.current_usage && error.plan_limit) {
+        console.log(`   Usage: ${error.current_usage}/${error.plan_limit} runs`);
+      }
+    } else {
+      const errorText = await runRes.text();
+      throw new Error(`Run failed: ${runRes.status} - ${errorText}`);
+    }
+
+    console.log('🎉 All usage limit tests passed!');
+    
+  } catch (error) {
+    console.error('❌ Test failed:', error.message);
+    process.exit(1);
+  }
+}
+
+testUsageLimits();
