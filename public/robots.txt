@@ -15,7 +15,7 @@ Disallow: /v1/agents/
 Disallow: /v1/runs/
 
 # Sitemap location
-Sitemap: https://api.siloworker.com/sitemap.xml
+Sitemap: https://siloworker.dev/sitemap.xml
 
 # Crawl delay (be nice to our servers)
 Crawl-delay: 1

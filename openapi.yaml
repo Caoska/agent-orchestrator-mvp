@@ -32,7 +32,7 @@ info:
   contact:
     email: support@siloworker.com
 servers:
-  - url: https://api.siloworker.com
+  - url: https://siloworker.dev
     description: Production
   - url: http://localhost:4000
     description: Local development
