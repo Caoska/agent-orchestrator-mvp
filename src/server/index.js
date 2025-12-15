@@ -263,6 +263,11 @@ app.get('/migrate-from-zapier', (req, res) => {
   res.sendFile(join(__dirname, '../../public/migrate-from-zapier.html'));
 });
 
+// Pricing calculator
+app.get('/pricing-calculator', (req, res) => {
+  res.sendFile(join(__dirname, '../../public/pricing-calculator.html'));
+});
+
 // SEO files
 app.get('/sitemap.xml', (req, res) => {
   res.type('application/xml');

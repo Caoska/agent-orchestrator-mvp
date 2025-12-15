@@ -7,6 +7,7 @@ info:
     ## Links
     - 🌟 **[Features & Examples](/features)** - See all 9 tools with code examples
     - 🔄 **[Migrate from Zapier](/migrate-from-zapier)** - Save 80% with BYOC pricing
+    - 💰 **[Pricing Calculator](/pricing-calculator)** - Calculate your BYOC savings vs Zapier
     - 📂 **[GitHub Repository](https://github.com/Caoska/agent-orchestrator-mvp)** - Open source examples and integration guides
     - 🚀 **[Try SiloWorker](https://siloworker.dev)** - Get started with free account
     
@@ -32,7 +33,7 @@ info:
   contact:
     email: support@siloworker.com
 servers:
-  - url: https://siloworker.dev
+  - url: https://agent-orchestrator-mvp-production.up.railway.app
     description: Production
   - url: http://localhost:4000
     description: Local development
