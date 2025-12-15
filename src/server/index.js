@@ -268,6 +268,11 @@ app.get('/pricing-calculator', (req, res) => {
   res.sendFile(join(__dirname, '../../public/pricing-calculator.html'));
 });
 
+// Pricing page
+app.get('/pricing', (req, res) => {
+  res.sendFile(join(__dirname, '../../public/pricing.html'));
+});
+
 // SEO files
 app.get('/sitemap.xml', (req, res) => {
   res.type('application/xml');
