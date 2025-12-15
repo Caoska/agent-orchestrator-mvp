@@ -94,14 +94,16 @@ await test('Create project', async () => {
 });
 
 // Template Tests
+let templateId = null;
 await test('List templates', async () => {
   const data = await apiCall('GET', '/v1/templates');
   if (!Array.isArray(data)) throw new Error('Not an array');
   if (data.length === 0) throw new Error('No templates');
+  templateId = data[0].id; // Use first template
 });
 
 await test('Get template', async () => {
-  const data = await apiCall('GET', '/v1/templates/lead-capture');
+  const data = await apiCall('GET', `/v1/templates/${templateId}`);
   if (!data.steps) throw new Error('No steps in template');
 });
 
