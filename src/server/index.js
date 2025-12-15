@@ -742,6 +742,12 @@ app.patch("/v1/workspace/settings", requireApiKey, requireWorkspace, async (req,
   res.json({ updated: true });
 });
 
+app.post("/v1/workspace/regenerate-key", requireApiKey, requireWorkspace, async (req, res) => {
+  const newApiKey = "sk_test_" + uuidv4();
+  await data.updateWorkspace(req.workspace.workspace_id, { api_key: newApiKey });
+  res.json({ api_key: newApiKey });
+});
+
 app.get("/v1/templates", (req, res) => {
   res.json(TEMPLATES);
 });
