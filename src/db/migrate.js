@@ -46,7 +46,8 @@ async function migrate() {
         'email_verified BOOLEAN DEFAULT false',
         'verification_token VARCHAR(255)',
         'reset_token VARCHAR(255)',
-        'reset_token_expires TIMESTAMP'
+        'reset_token_expires TIMESTAMP',
+        'last_usage_notification DECIMAL(3,2) DEFAULT 0'
       ];
       
       for (const col of columns) {

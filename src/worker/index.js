@@ -263,6 +263,10 @@ const worker = new Worker(
           webhooks: webhooks,
           execution_seconds: executionSeconds
         });
+        
+        // Check usage thresholds after incrementing
+        const { checkUsageThresholds } = await import('../../lib/usage-notifications.js');
+        await checkUsageThresholds(project.workspace_id);
       }
       
       // Save to both Redis and DB

@@ -10,7 +10,7 @@ import jwt from "jsonwebtoken";
 import { initDb, getDb } from "../../lib/db.js";
 import * as data from "../../lib/data.js";
 import { scheduleRun, removeSchedule, listSchedules } from "../../lib/scheduler.js";
-import { canExecuteRun, createCheckoutSession, createPortalSession } from "../../lib/stripe.js";
+import { canExecuteRun, createCheckoutSession, createPortalSession, PLANS } from "../../lib/stripe.js";
 import { TEMPLATES, getTemplate } from "../../lib/templates.js";
 import { generateWebhookSecret } from "../../lib/webhooks.js";
 import { rateLimit } from "../../lib/ratelimit.js";
@@ -610,7 +610,14 @@ app.post("/v1/runs", requireApiKey, requireWorkspace, rateLimit(60000, 100), asy
   
   // Check usage limits
   if (!canExecuteRun(req.workspace)) {
-    return res.status(402).json({ error: "run limit reached", upgrade_url: "/upgrade" });
+    const plan = req.workspace.plan || 'free';
+    const limit = PLANS[plan].runs;
+    return res.status(402).json({ 
+      error: "run limit reached", 
+      current_usage: req.workspace.runs_this_month,
+      plan_limit: limit,
+      upgrade_url: "/upgrade" 
+    });
   }
   
   const run_id = "run_" + uuidv4();
