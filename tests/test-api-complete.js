@@ -145,6 +145,26 @@ const tools = [
     name: 'Conditional Tool',
     type: 'conditional',
     config: { condition: 'true' }
+  },
+  {
+    name: 'Database Tool',
+    type: 'database',
+    config: { query: 'SELECT 1 as test', connection_string: 'postgresql://test:test@localhost:5432/test' }
+  },
+  {
+    name: 'SendGrid Tool',
+    type: 'sendgrid',
+    config: { to: 'test@example.com', subject: 'Test', text: 'Test email' }
+  },
+  {
+    name: 'LLM Tool',
+    type: 'llm',
+    config: { prompt: 'Say hello', model: 'gpt-4' }
+  },
+  {
+    name: 'Twilio Tool',
+    type: 'twilio',
+    config: { to: '+15555555555', from: '+15555555555', body: 'Test SMS' }
   }
 ];
 
@@ -204,7 +224,7 @@ await test('Get run', async () => {
 
 // Schedule Tests
 let scheduleId = null;
-await test('Create schedule', async () => {
+await test('Create schedule (cron)', async () => {
   const data = await apiCall('POST', '/v1/schedules', {
     agent_id: agentIds.http,
     cron: '0 0 * * *',
@@ -212,6 +232,15 @@ await test('Create schedule', async () => {
   });
   if (!data.schedule_id) throw new Error('No schedule ID');
   scheduleId = data.schedule_id;
+});
+
+await test('Create schedule (interval)', async () => {
+  const data = await apiCall('POST', '/v1/schedules', {
+    agent_id: agentIds.delay,
+    interval_seconds: 3600,
+    input: { interval: true }
+  });
+  if (!data.schedule_id) throw new Error('No schedule ID');
 });
 
 await test('List schedules', async () => {
@@ -222,6 +251,25 @@ await test('List schedules', async () => {
 await test('Delete schedule', async () => {
   await apiCall('DELETE', `/v1/schedules/${scheduleId}`);
 });
+
+// Template Tests - Create agents from all templates
+await test('List all templates', async () => {
+  const data = await apiCall('GET', '/v1/templates');
+  if (!Array.isArray(data)) throw new Error('Not an array');
+  if (data.length < 10) throw new Error(`Expected 10 templates, got ${data.length}`);
+});
+
+const templates = await apiCall('GET', '/v1/templates');
+for (const template of templates) {
+  await test(`Create agent from template: ${template.name}`, async () => {
+    const data = await apiCall('POST', '/v1/agents', {
+      project_id: projectId,
+      name: `From Template: ${template.name}`,
+      steps: template.steps
+    });
+    if (!data.agent_id) throw new Error('No agent ID');
+  });
+}
 
 // Cleanup
 await test('Delete agent', async () => {
