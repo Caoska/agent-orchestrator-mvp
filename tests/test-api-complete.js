@@ -54,7 +54,28 @@ async function apiCall(method, path, body = null) {
 // Auth Tests
 await test('Health check', async () => {
   const data = await apiCall('GET', '/health');
-  if (!data.ok) throw new Error('Health check failed');
+  if (data.status !== 'healthy' && data.status !== 'degraded') {
+    throw new Error(`Health check failed: ${data.status}`);
+  }
+  if (!data.services) throw new Error('Missing services in health check');
+  console.log(`   Services: ${Object.keys(data.services).join(', ')}`);
+});
+
+await test('Metrics endpoint', async () => {
+  const res = await fetch(`${API_URL}/metrics`);
+  if (!res.ok) throw new Error('Metrics endpoint failed');
+  const metrics = await res.text();
+  if (!metrics.includes('http_requests_total')) {
+    throw new Error('Missing expected metrics');
+  }
+  console.log(`   Metrics: ${metrics.split('\n').length} lines`);
+});
+
+await test('Correlation ID headers', async () => {
+  const res = await fetch(`${API_URL}/health`);
+  const correlationId = res.headers.get('X-Correlation-ID');
+  if (!correlationId) throw new Error('Missing correlation ID header');
+  console.log(`   Correlation ID: ${correlationId.substring(0, 8)}...`);
 });
 
 await test('Signup', async () => {
@@ -287,6 +308,19 @@ await test('Test workspace usage tracking', async () => {
     throw new Error('Missing plan in workspace response');
   }
   console.log(`   Usage: ${workspace.runs_this_month} runs, plan: ${workspace.plan}`);
+});
+
+await test('Test error handling with correlation ID', async () => {
+  const res = await fetch(`${API_URL}/v1/agents/invalid-agent-id`, {
+    headers: { 'Authorization': `Bearer ${apiKey}` }
+  });
+  
+  if (res.status !== 404) throw new Error(`Expected 404, got ${res.status}`);
+  
+  const correlationId = res.headers.get('X-Correlation-ID');
+  if (!correlationId) throw new Error('Missing correlation ID in error response');
+  
+  console.log(`   Error correlation ID: ${correlationId.substring(0, 8)}...`);
 });
 
 // Cleanup
