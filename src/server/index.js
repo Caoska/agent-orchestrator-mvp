@@ -273,6 +273,22 @@ app.get('/pricing', (req, res) => {
   res.sendFile(join(__dirname, '../../public/pricing.html'));
 });
 
+// Blog routes
+app.get('/blog', (req, res) => {
+  res.sendFile(join(__dirname, '../../public/blog/index.html'));
+});
+
+app.get('/blog/:slug', (req, res) => {
+  const slug = req.params.slug;
+  const allowedSlugs = ['zapier-database-limitations', 'byoc-automation-savings'];
+  
+  if (allowedSlugs.includes(slug)) {
+    res.sendFile(join(__dirname, `../../public/blog/${slug}.html`));
+  } else {
+    res.status(404).send('Blog post not found');
+  }
+});
+
 // SEO files
 app.get('/sitemap.xml', (req, res) => {
   res.type('application/xml');
