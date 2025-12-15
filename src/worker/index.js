@@ -53,13 +53,23 @@ async function executeStep(step, context) {
     const plan = workspace.plan || 'free';
     const limit = limits[plan] || limits.free;
     
-    if (step.type === 'sendgrid' && (workspace.emails_this_month || 0) >= limit.emails) {
-      throw new Error(`Monthly email limit exceeded (${limit.emails}). Upgrade plan or add your own SendGrid key.`);
+    // Only check limits if using PLATFORM credentials (not BYOC)
+    const usingPlatformCredentials = step.type === 'sendgrid' 
+      ? !step.config.api_key && !workspace.sendgrid_api_key
+      : !step.config.account_sid && !workspace.twilio_account_sid;
+
+    if (usingPlatformCredentials) {
+      if (step.type === 'sendgrid' && (workspace.emails_this_month || 0) >= limit.emails) {
+        throw new Error(`Monthly email limit exceeded (${limit.emails}). Upgrade plan or add your own SendGrid key.`);
+      }
+      
+      if (step.type === 'twilio' && (workspace.sms_this_month || 0) >= limit.sms) {
+        throw new Error(`Monthly SMS limit exceeded (${limit.sms}). Upgrade plan or add your own Twilio credentials.`);
+      }
     }
     
-    if (step.type === 'twilio' && (workspace.sms_this_month || 0) >= limit.sms) {
-      throw new Error(`Monthly SMS limit exceeded (${limit.sms}). Upgrade plan or add your own Twilio credentials.`);
-    }
+    // Store BYOC status for usage tracking
+    context._usingPlatformCredentials = usingPlatformCredentials;
   }
   
   return await executor(step.config, context);
@@ -152,7 +162,8 @@ async function executeWorkflow(workflow, initialContext, stepLogs) {
         status: "success",
         duration_ms: duration,
         output: result,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        usingPlatformCredentials: context._usingPlatformCredentials || false
       });
       
       // Determine next node based on connections
@@ -263,6 +274,14 @@ const worker = new Worker(
       const httpCalls = stepLogs.filter(s => s.type === 'http').length;
       const webhooks = stepLogs.filter(s => s.type === 'webhook').length;
       
+      // Count platform email/SMS usage (not BYOC)
+      const platformEmails = stepLogs.filter(s => 
+        s.type === 'sendgrid' && s.usingPlatformCredentials
+      ).length;
+      const platformSMS = stepLogs.filter(s => 
+        s.type === 'twilio' && s.usingPlatformCredentials
+      ).length;
+      
       run.status = "completed";
       run.completed_at = new Date().toISOString();
       run.results = { steps: stepLogs };
@@ -275,7 +294,9 @@ const worker = new Worker(
           steps: stepLogs.length,
           http_calls: httpCalls,
           webhooks: webhooks,
-          execution_seconds: executionSeconds
+          execution_seconds: executionSeconds,
+          platform_emails: platformEmails,
+          platform_sms: platformSMS
         });
         
         // Check usage thresholds after incrementing
