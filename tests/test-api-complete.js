@@ -271,16 +271,7 @@ for (const template of templates) {
   });
 }
 
-// Cleanup
-await test('Delete agent', async () => {
-  await apiCall('DELETE', `/v1/agents/${agentIds.http}`);
-});
-
-await test('Delete workspace', async () => {
-  await apiCall('DELETE', '/v1/workspace');
-});
-
-// Error path tests
+// Error path tests (before cleanup)
 await test('Test oversized input (400 error)', async () => {
   const largeInput = { data: 'x'.repeat(60000) }; // >50KB
   
@@ -318,6 +309,15 @@ await test('Test workspace usage tracking', async () => {
     throw new Error('Missing plan in workspace response');
   }
   console.log(`   Usage: ${workspace.runs_this_month} runs, plan: ${workspace.plan}`);
+});
+
+// Cleanup
+await test('Delete agent', async () => {
+  await apiCall('DELETE', `/v1/agents/${agentIds.http}`);
+});
+
+await test('Delete workspace', async () => {
+  await apiCall('DELETE', '/v1/workspace');
 });
 
 console.log('\n🎉 All tests passed!');
