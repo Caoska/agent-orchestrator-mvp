@@ -1,11 +1,18 @@
 import { spawn } from 'child_process';
 
 const serviceName = process.env.RAILWAY_SERVICE_NAME || '';
-const isWorker = serviceName.toLowerCase().includes('worker');
-const isOrchestrator = serviceName.toLowerCase().includes('orchestrator');
+console.log(`Service name: ${serviceName}`);
+
+// More specific worker detection
+const isOrchestrator = serviceName.includes('orchestrator') && serviceName !== 'agent-orchestrator-mvp';
+const isFastWorker = serviceName.includes('fast-worker');
+const isSlowWorker = serviceName.includes('slow-worker');
+const isWorker = isOrchestrator || isFastWorker || isSlowWorker;
+
+console.log(`Worker detection: orchestrator=${isOrchestrator}, fast=${isFastWorker}, slow=${isSlowWorker}, isWorker=${isWorker}`);
 
 // Run migrations before starting server (not worker)
-if (!isWorker && !isOrchestrator) {
+if (!isWorker) {
   console.log('Running database migrations...');
   const migrate = spawn('node', ['src/db/migrate.js'], { stdio: 'inherit' });
   
@@ -22,14 +29,14 @@ if (!isWorker && !isOrchestrator) {
 } else {
   // Determine which worker to start
   let script;
-  if (serviceName.includes('fast-worker')) {
+  if (isFastWorker) {
     script = 'src/worker/fast-worker.js';
-  } else if (serviceName.includes('slow-worker')) {
+  } else if (isSlowWorker) {
     script = 'src/worker/slow-worker.js';
-  } else if (serviceName.includes('orchestrator')) {
+  } else if (isOrchestrator) {
     script = 'src/worker/orchestrator.js';
   } else {
-    // Default to orchestrator for backward compatibility
+    // Fallback to orchestrator
     script = 'src/worker/orchestrator.js';
   }
   
