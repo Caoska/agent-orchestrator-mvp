@@ -1,4 +1,4 @@
-import { Worker, Queue } from "bullmq";
+import { Worker, Queue, QueueEvents } from "bullmq";
 import IORedis from "ioredis";
 import dotenv from "dotenv";
 import { initDb } from "../../lib/db.js";
@@ -16,9 +16,11 @@ const SLOW_QUEUE_NAME = "slow-jobs";
 
 const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 
-// Create queues for routing jobs
+// Create queues and queue events for routing jobs
 const fastQueue = new Queue(FAST_QUEUE_NAME, { connection });
 const slowQueue = new Queue(SLOW_QUEUE_NAME, { connection });
+const fastQueueEvents = new QueueEvents(FAST_QUEUE_NAME, { connection });
+const slowQueueEvents = new QueueEvents(SLOW_QUEUE_NAME, { connection });
 
 // Tool classification
 const FAST_TOOLS = ['http', 'webhook', 'transform', 'conditional', 'sendgrid', 'twilio', 'llm'];
@@ -135,8 +137,10 @@ async function executeWorkflow(workflow, initialContext, runId, stepLogs) {
       // Route to appropriate worker queue
       const job = await routeStep(node, execContext, runId, currentNodeId);
       
-      // Wait for job completion
-      const result = await job.waitUntilFinished();
+      // Wait for job completion with proper QueueEvents
+      const result = await job.waitUntilFinished(
+        job.queueName === FAST_QUEUE_NAME ? fastQueueEvents : slowQueueEvents
+      );
       
       if (!result.success) {
         throw new Error(result.error);
@@ -339,6 +343,17 @@ orchestrator.on("completed", job => {
 
 orchestrator.on("failed", (job, err) => {
   console.error("Orchestrator job failed", job?.id, err);
+});
+
+// Cleanup on shutdown
+process.on('SIGTERM', async () => {
+  console.log('Shutting down orchestrator...');
+  await orchestrator.close();
+  await fastQueue.close();
+  await slowQueue.close();
+  await fastQueueEvents.close();
+  await slowQueueEvents.close();
+  await connection.quit();
 });
 
 console.log('Orchestrator started - routing to fast/slow workers');
