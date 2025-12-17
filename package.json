@@ -5,9 +5,12 @@
     "main": "server.js",
     "type": "module",
     "scripts": {
-        "start": "node server.js",
-        "worker": "node worker.js",
-        "dev": "nodemon server.js",
+        "start": "node start.js",
+        "worker": "node src/worker/index.js",
+        "orchestrator": "node src/worker/orchestrator.js",
+        "fast-worker": "node src/worker/fast-worker.js",
+        "slow-worker": "node src/worker/slow-worker.js",
+        "dev": "nodemon src/server/index.js",
         "test": "node tests/test-api-complete.js"
     },
     "dependencies": {
