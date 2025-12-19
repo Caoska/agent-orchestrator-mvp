@@ -209,6 +209,14 @@ app.post("/v1/webhooks/stripe", express.text({ type: 'application/json' }), asyn
       });
     }
     
+    if (event.type === 'customer.subscription.updated') {
+      const subscription = event.data.object;
+      const workspace = await data.getWorkspaceByStripeCustomer(subscription.customer);
+      if (workspace && subscription.metadata.plan) {
+        await data.updateWorkspace(workspace.workspace_id, { plan: subscription.metadata.plan });
+      }
+    }
+    
     if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object;
       const workspace = await data.getWorkspaceByStripeCustomer(subscription.customer);
