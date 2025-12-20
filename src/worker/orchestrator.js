@@ -44,6 +44,7 @@ function normalizeWorkflow(agent) {
   console.log('Generated nodes:', nodes.map(n => ({ id: n.id, type: n.type })));
   
   const connections = [];
+  console.log('FIXED VERSION: Starting connection creation...');
   nodes.forEach((node, i) => {
     if (node.connections && node.connections.length > 0) {
       node.connections.forEach(conn => {
@@ -58,13 +59,13 @@ function normalizeWorkflow(agent) {
       // Use the actual next node's ID instead of generating it
       const nextNode = nodes[i + 1];
       const nextNodeId = nextNode.id;
+      console.log(`FIXED: Creating connection ${node.id} -> ${nextNodeId} (was broken before)`);
       connections.push({
         from: node.id,
         fromPort: 'output',
         to: nextNodeId,
         toPort: 'input'
       });
-      console.log(`Creating connection: ${node.id} -> ${nextNodeId}`);
     }
   });
   
