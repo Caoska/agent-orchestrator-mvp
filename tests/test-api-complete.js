@@ -342,7 +342,11 @@ for (const template of templates) {
         runResult.error.includes('SendGrid') ||
         runResult.error.includes('Twilio') ||
         runResult.error.includes('API key') ||
-        runResult.error.includes('verified Sender Identity')
+        runResult.error.includes('API Key') ||
+        runResult.error.includes('verified Sender Identity') ||
+        runResult.error.includes('Stripe') ||
+        runResult.error.includes('Invalid API Key') ||
+        runResult.error.includes('401')
       );
       
       if (isExternalServiceFailure) {
