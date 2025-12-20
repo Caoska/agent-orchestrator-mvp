@@ -46,7 +46,9 @@ function normalizeWorkflow(agent) {
   const connections = [];
   console.log('FIXED VERSION: Starting connection creation...');
   nodes.forEach((node, i) => {
+    console.log(`Processing node ${i}: ${node.id} (${node.type})`);
     if (node.connections && node.connections.length > 0) {
+      console.log(`Node ${node.id} has explicit connections:`, node.connections);
       node.connections.forEach(conn => {
         connections.push({
           from: node.id,
@@ -66,8 +68,12 @@ function normalizeWorkflow(agent) {
         to: nextNodeId,
         toPort: 'input'
       });
+    } else {
+      console.log(`Node ${node.id} is the last node, no connection needed`);
     }
   });
+  
+  console.log('Connections after creation:', connections.map(c => `${c.from} -> ${c.to}`));
   
   console.log('Orchestrator normalized workflow:', { 
     nodeCount: nodes.length, 
