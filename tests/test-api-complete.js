@@ -292,6 +292,71 @@ for (const template of templates) {
   });
 }
 
+// Template Execution Tests - Actually run each template
+for (const template of templates) {
+  await test(`Execute template: ${template.name}`, async () => {
+    // Create agent from template
+    const agent = await apiCall('POST', '/v1/agents', {
+      project_id: projectId,
+      name: `Execute Test: ${template.name}`,
+      steps: template.steps
+    });
+    
+    // Run the agent
+    const run = await apiCall('POST', '/v1/runs', {
+      agent_id: agent.agent_id,
+      project_id: projectId,
+      input: {
+        // Provide sample input for templates that need it
+        name: 'Test User',
+        email: 'test@example.com',
+        message: 'Test message',
+        content: 'Test content for approval',
+        author_email: 'author@example.com',
+        value: 'test-value'
+      }
+    });
+    
+    if (!run.run_id) throw new Error('No run ID');
+    
+    // Wait for completion (with timeout)
+    let attempts = 0;
+    let runResult;
+    while (attempts < 30) { // 30 second timeout
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      runResult = await apiCall('GET', `/v1/runs/${run.run_id}`);
+      
+      if (runResult.status === 'completed' || runResult.status === 'failed') {
+        break;
+      }
+      attempts++;
+    }
+    
+    if (attempts >= 30) {
+      throw new Error(`Template ${template.name} execution timed out`);
+    }
+    
+    // Verify execution results
+    if (runResult.status === 'failed') {
+      console.log(`Template ${template.name} failed:`, runResult.error);
+      console.log('Steps executed:', runResult.results?.steps?.length || 0, 'of', template.steps.length);
+      throw new Error(`Template ${template.name} execution failed: ${runResult.error}`);
+    }
+    
+    // Verify all steps executed
+    const stepsExecuted = runResult.results?.steps?.length || 0;
+    const expectedSteps = template.steps.length;
+    
+    if (stepsExecuted !== expectedSteps) {
+      console.log(`Template ${template.name} - Expected ${expectedSteps} steps, got ${stepsExecuted}`);
+      console.log('Executed steps:', runResult.results?.steps?.map(s => `${s.node_id}:${s.type}:${s.status}`));
+      throw new Error(`Template ${template.name} only executed ${stepsExecuted}/${expectedSteps} steps`);
+    }
+    
+    console.log(`✅ Template ${template.name} executed all ${stepsExecuted} steps successfully`);
+  });
+}
+
 // Error path tests (before cleanup)
 await test('Test workspace usage tracking', async () => {
   const res = await fetch(`${API_URL}/v1/workspace`, {
