@@ -55,7 +55,9 @@ function normalizeWorkflow(agent) {
         });
       });
     } else if (i < nodes.length - 1) {
-      const nextNodeId = `node_${i + 1}`;
+      // Use the actual next node's ID instead of generating it
+      const nextNode = nodes[i + 1];
+      const nextNodeId = nextNode.id;
       connections.push({
         from: node.id,
         fromPort: 'output',
