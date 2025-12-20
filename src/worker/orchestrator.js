@@ -60,6 +60,12 @@ function normalizeWorkflow(agent) {
     }
   });
   
+  console.log('Orchestrator normalized workflow:', { 
+    nodeCount: nodes.length, 
+    connectionCount: connections.length,
+    connections: connections.map(c => `${c.from} -> ${c.to}`)
+  });
+  
   return { nodes, connections };
 }
 
@@ -172,6 +178,7 @@ async function executeWorkflow(workflow, initialContext, runId, stepLogs) {
       } else {
         const connection = connections.find(c => c.from === currentNodeId && c.fromPort === 'output');
         nextNodeId = connection?.to;
+        console.log(`Orchestrator: Looking for connection from ${currentNodeId} with port 'output', found: ${nextNodeId}`);
       }
       
       currentNodeId = nextNodeId;
