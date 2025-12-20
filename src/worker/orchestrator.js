@@ -32,12 +32,16 @@ function normalizeWorkflow(agent) {
     return { nodes: agent.nodes, connections: agent.connections };
   }
   
+  console.log('Raw agent steps:', agent.steps?.map((s, i) => ({ index: i, type: s.tool || s.type })));
+  
   const nodes = agent.steps.map((step, i) => ({
     id: `node_${i}`,
     type: step.tool || step.type,
     config: step.config || step,
     connections: step.connections || []
   }));
+  
+  console.log('Generated nodes:', nodes.map(n => ({ id: n.id, type: n.type })));
   
   const connections = [];
   nodes.forEach((node, i) => {
@@ -51,12 +55,14 @@ function normalizeWorkflow(agent) {
         });
       });
     } else if (i < nodes.length - 1) {
+      const nextNodeId = `node_${i + 1}`;
       connections.push({
         from: node.id,
         fromPort: 'output',
-        to: `node_${i + 1}`,
+        to: nextNodeId,
         toPort: 'input'
       });
+      console.log(`Creating connection: ${node.id} -> ${nextNodeId}`);
     }
   });
   
