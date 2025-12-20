@@ -357,6 +357,242 @@ for (const template of templates) {
   });
 }
 
+// Advanced Workflow Tests
+await test('Multi-step workflow orchestration', async () => {
+  // Create a simple 3-step workflow to test orchestration
+  const agent = await apiCall('POST', '/v1/agents', {
+    project_id: projectId,
+    name: 'Orchestration Test',
+    steps: [
+      {
+        tool: 'http',
+        config: {
+          name: 'Step 1',
+          url: 'https://httpbin.org/json',
+          method: 'GET'
+        }
+      },
+      {
+        tool: 'transform',
+        config: {
+          name: 'Step 2',
+          script: 'return { processed: true, from_step1: node_0.slideshow ? "found" : "missing" };'
+        }
+      },
+      {
+        tool: 'http',
+        config: {
+          name: 'Step 3',
+          url: 'https://httpbin.org/post',
+          method: 'POST',
+          body: { result: '{{node_1.processed}}' }
+        }
+      }
+    ]
+  });
+  
+  const run = await apiCall('POST', '/v1/runs', {
+    agent_id: agent.agent_id,
+    project_id: projectId,
+    input: {}
+  });
+  
+  // Wait for completion
+  let attempts = 0;
+  let runResult;
+  while (attempts < 20) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    runResult = await apiCall('GET', `/v1/runs/${run.run_id}`);
+    if (runResult.status === 'completed' || runResult.status === 'failed') break;
+    attempts++;
+  }
+  
+  if (runResult.status !== 'completed') {
+    throw new Error(`Orchestration test failed: ${runResult.error || 'timeout'}`);
+  }
+  
+  if (runResult.results?.steps?.length !== 3) {
+    throw new Error(`Expected 3 steps, got ${runResult.results?.steps?.length}`);
+  }
+  
+  // Verify step chaining worked
+  const steps = runResult.results.steps;
+  if (!steps.every(s => s.status === 'success')) {
+    throw new Error('Not all steps succeeded');
+  }
+  
+  console.log('✅ Multi-step orchestration working correctly');
+});
+
+// Error Handling Tests
+await test('Workflow error handling', async () => {
+  // Create workflow with intentional failure
+  const agent = await apiCall('POST', '/v1/agents', {
+    project_id: projectId,
+    name: 'Error Test',
+    steps: [
+      {
+        tool: 'http',
+        config: {
+          name: 'Good step',
+          url: 'https://httpbin.org/json',
+          method: 'GET'
+        }
+      },
+      {
+        tool: 'http',
+        config: {
+          name: 'Bad step',
+          url: 'https://httpbin.org/status/500',
+          method: 'GET'
+        }
+      },
+      {
+        tool: 'http',
+        config: {
+          name: 'Should not execute',
+          url: 'https://httpbin.org/json',
+          method: 'GET'
+        }
+      }
+    ]
+  });
+  
+  const run = await apiCall('POST', '/v1/runs', {
+    agent_id: agent.agent_id,
+    project_id: projectId,
+    input: {}
+  });
+  
+  // Wait for completion
+  let attempts = 0;
+  let runResult;
+  while (attempts < 20) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    runResult = await apiCall('GET', `/v1/runs/${run.run_id}`);
+    if (runResult.status === 'completed' || runResult.status === 'failed') break;
+    attempts++;
+  }
+  
+  if (runResult.status !== 'failed') {
+    throw new Error('Expected workflow to fail but it succeeded');
+  }
+  
+  // Should have executed 2 steps (success + failure), not 3
+  const stepsExecuted = runResult.results?.steps?.length || 0;
+  if (stepsExecuted !== 2) {
+    throw new Error(`Expected 2 steps executed, got ${stepsExecuted}`);
+  }
+  
+  // First step should succeed, second should fail
+  const steps = runResult.results.steps;
+  if (steps[0].status !== 'success' || steps[1].status !== 'failed') {
+    throw new Error('Unexpected step statuses');
+  }
+  
+  console.log('✅ Error handling working correctly');
+});
+
+// Node ID Consistency Test (catches the bug we just fixed)
+await test('Node ID consistency in workflows', async () => {
+  // Create agent from template and verify node IDs are clean
+  const template = templates.find(t => t.id === 'daily-market-report');
+  if (!template) throw new Error('Daily Market Report template not found');
+  
+  const agent = await apiCall('POST', '/v1/agents', {
+    project_id: projectId,
+    name: 'Node ID Test',
+    steps: template.steps
+  });
+  
+  const run = await apiCall('POST', '/v1/runs', {
+    agent_id: agent.agent_id,
+    project_id: projectId,
+    input: {}
+  });
+  
+  // Wait for at least 2 steps to execute
+  let attempts = 0;
+  let runResult;
+  while (attempts < 15) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    runResult = await apiCall('GET', `/v1/runs/${run.run_id}`);
+    if (runResult.results?.steps?.length >= 2 || runResult.status === 'failed') break;
+    attempts++;
+  }
+  
+  const stepsExecuted = runResult.results?.steps?.length || 0;
+  if (stepsExecuted < 2) {
+    throw new Error(`Node ID corruption detected: only ${stepsExecuted} steps executed, expected multiple steps`);
+  }
+  
+  // Verify node IDs are clean (node_0, node_1, etc.)
+  const steps = runResult.results.steps;
+  for (let i = 0; i < steps.length; i++) {
+    const expectedNodeId = `node_${i}`;
+    if (steps[i].node_id !== expectedNodeId) {
+      throw new Error(`Node ID corruption: expected ${expectedNodeId}, got ${steps[i].node_id}`);
+    }
+  }
+  
+  console.log(`✅ Node IDs are clean: ${steps.map(s => s.node_id).join(', ')}`);
+});
+
+// Transform Step Test
+await test('Transform step data passing', async () => {
+  const agent = await apiCall('POST', '/v1/agents', {
+    project_id: projectId,
+    name: 'Transform Test',
+    steps: [
+      {
+        tool: 'http',
+        config: {
+          name: 'Get data',
+          url: 'https://httpbin.org/json',
+          method: 'GET'
+        }
+      },
+      {
+        tool: 'transform',
+        config: {
+          name: 'Process data',
+          script: 'return { hasSlideshow: !!node_0.slideshow, stepCount: 2 };'
+        }
+      }
+    ]
+  });
+  
+  const run = await apiCall('POST', '/v1/runs', {
+    agent_id: agent.agent_id,
+    project_id: projectId,
+    input: {}
+  });
+  
+  let attempts = 0;
+  let runResult;
+  while (attempts < 15) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    runResult = await apiCall('GET', `/v1/runs/${run.run_id}`);
+    if (runResult.status === 'completed' || runResult.status === 'failed') break;
+    attempts++;
+  }
+  
+  if (runResult.status !== 'completed') {
+    throw new Error(`Transform test failed: ${runResult.error}`);
+  }
+  
+  const transformStep = runResult.results.steps.find(s => s.type === 'transform');
+  if (!transformStep || !transformStep.output) {
+    throw new Error('Transform step did not produce output');
+  }
+  
+  if (!transformStep.output.hasSlideshow || transformStep.output.stepCount !== 2) {
+    throw new Error('Transform step did not process data correctly');
+  }
+  
+  console.log('✅ Transform step working correctly');
+});
+
 // Error path tests (before cleanup)
 await test('Test workspace usage tracking', async () => {
   const res = await fetch(`${API_URL}/v1/workspace`, {
