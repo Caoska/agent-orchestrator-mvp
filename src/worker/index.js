@@ -114,6 +114,12 @@ function normalizeWorkflow(agent) {
     }
   });
   
+  console.log('Normalized workflow:', { 
+    nodeCount: nodes.length, 
+    connectionCount: connections.length,
+    connections: connections.map(c => `${c.from} -> ${c.to}`)
+  });
+  
   return { nodes, connections };
 }
 
@@ -181,6 +187,7 @@ async function executeWorkflow(workflow, initialContext, stepLogs) {
         // Follow normal output connection
         const connection = connections.find(c => c.from === currentNodeId && c.fromPort === 'output');
         nextNodeId = connection?.to;
+        console.log(`Looking for connection from ${currentNodeId} with port 'output', found: ${nextNodeId}`);
       }
       
       currentNodeId = nextNodeId;
