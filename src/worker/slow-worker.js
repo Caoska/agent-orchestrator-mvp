@@ -29,7 +29,13 @@ async function executeStep(step, context) {
     throw new Error(`Unknown step type: ${step.type || step.tool}`);
   }
   
-  return await executor(step.config, context);
+  // Add timestamp to context for all tools
+  const contextWithTimestamp = {
+    ...context,
+    timestamp: new Date().toISOString()
+  };
+  
+  return await executor(step.config, contextWithTimestamp);
 }
 
 const slowWorker = new Worker(

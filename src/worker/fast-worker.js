@@ -67,7 +67,13 @@ async function executeStep(step, context) {
     context._usingPlatformCredentials = usingPlatformCredentials;
   }
   
-  return await executor(step.config, context);
+  // Add timestamp to context for all tools
+  const contextWithTimestamp = {
+    ...context,
+    timestamp: new Date().toISOString()
+  };
+  
+  return await executor(step.config, contextWithTimestamp);
 }
 
 const fastWorker = new Worker(
