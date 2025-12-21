@@ -43,6 +43,16 @@ initDb().catch(err => {
 
 const app = express();
 
+// CORS configuration - must be first
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true
+}));
+app.use(correlationMiddleware);
+app.use(metricsMiddleware);
+app.use(bodyParser.json());
+app.use(express.static('public'));
+
 // Inbound email webhook (SendGrid Inbound Parse)
 app.post("/v1/inbound/email", bodyParser.urlencoded({ extended: true }), async (req, res) => {
   try {
@@ -231,15 +241,6 @@ app.post("/v1/webhooks/stripe", express.text({ type: 'application/json' }), asyn
     res.status(400).json({ error: err.message });
   }
 });
-
-app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true
-}));
-app.use(correlationMiddleware);
-app.use(metricsMiddleware);
-app.use(bodyParser.json());
-app.use(express.static('public'));
 
 // Load OpenAPI spec and serve API docs
 const __filename = fileURLToPath(import.meta.url);
