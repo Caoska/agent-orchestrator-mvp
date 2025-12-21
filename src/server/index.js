@@ -614,7 +614,7 @@ app.post("/v1/tools", requireApiKey, (req, res) => {
 });
 
 app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
-  const { project_id, name, steps, retry_policy = {}, timeout_seconds = 300 } = req.body;
+  const { project_id, name, steps, trigger, retry_policy = {}, timeout_seconds = 300 } = req.body;
   const project = await data.getProject(project_id);
   
   if (!project || project.workspace_id !== req.workspace.workspace_id) {
@@ -630,7 +630,7 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
   
   const agent_id = "agent_" + uuidv4();
   const webhook_secret = generateWebhookSecret();
-  const agent = { agent_id, project_id, name, steps, retry_policy, timeout_seconds, webhook_secret, created_at: new Date().toISOString() };
+  const agent = { agent_id, project_id, name, steps, trigger, retry_policy, timeout_seconds, webhook_secret, created_at: new Date().toISOString() };
   await data.createAgent(agent);
   res.json({ agent_id, webhook_secret });
 });
@@ -666,7 +666,7 @@ app.get("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
 });
 
 app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
-  const { name, steps, retry_policy, timeout_seconds } = req.body;
+  const { name, steps, trigger, retry_policy, timeout_seconds } = req.body;
   const agent = await data.getAgent(req.params.id);
   if (!agent) return res.status(404).json({ error: "not found" });
   
@@ -682,7 +682,7 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
   }
   if (name && name.length > 200) return res.status(400).json({ error: "Name too long (max 200 chars)" });
   
-  await data.updateAgent(req.params.id, { name, steps, retry_policy, timeout_seconds });
+  await data.updateAgent(req.params.id, { name, steps, trigger, retry_policy, timeout_seconds });
   res.json({ updated: true });
 });
 
