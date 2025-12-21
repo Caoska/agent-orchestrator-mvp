@@ -234,8 +234,16 @@ app.post("/v1/webhooks/stripe", express.text({ type: 'application/json' }), asyn
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Debug CORS
+app.use((req, res, next) => {
+  console.log(`CORS Debug - Origin: ${req.headers.origin}, Frontend URL: ${process.env.FRONTEND_URL}`);
+  next();
+});
 app.use(correlationMiddleware);
 app.use(metricsMiddleware);
 app.use(bodyParser.json());
