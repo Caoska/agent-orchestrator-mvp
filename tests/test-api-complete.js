@@ -346,7 +346,9 @@ for (const template of templates) {
         runResult.error.includes('verified Sender Identity') ||
         runResult.error.includes('Stripe') ||
         runResult.error.includes('Invalid API Key') ||
-        runResult.error.includes('401')
+        runResult.error.includes('401') ||
+        runResult.error.includes('ECONNREFUSED') ||
+        runResult.error.includes('getaddrinfo ENOTFOUND')
       );
       
       if (isExternalServiceFailure) {
