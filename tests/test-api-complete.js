@@ -592,7 +592,18 @@ await test('Transform step data passing', async () => {
         tool: 'transform',
         config: {
           name: 'Process data',
-          script: 'return { hasSlideshow: !!node_0.slideshow, stepCount: 2 };'
+          operations: [
+            {
+              type: 'extract',
+              key: 'hasSlideshow',
+              path: '{{node_0.slideshow}}'
+            },
+            {
+              type: 'template',
+              key: 'stepCount',
+              template: '2'
+            }
+          ]
         }
       }
     ]
