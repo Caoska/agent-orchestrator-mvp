@@ -313,7 +313,8 @@ for (const template of templates) {
         message: 'Test message',
         content: 'Test content for approval',
         author_email: 'author@example.com',
-        value: 'test-value'
+        value: 'test-value',
+        event_type: 'payment'
       }
     });
     
