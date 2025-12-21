@@ -11,7 +11,7 @@ const testEmail = `test-${Date.now()}@example.com`;
 const testPassword = 'testpass123';
 
 // Cleanup on exit (even if tests fail)
-process.on('beforeExit', async () => {
+async function cleanup() {
   if (apiKey) {
     try {
       await apiCall('DELETE', '/v1/workspace');
@@ -20,6 +20,16 @@ process.on('beforeExit', async () => {
       // Ignore cleanup errors
     }
   }
+}
+
+process.on('beforeExit', cleanup);
+process.on('SIGINT', async () => {
+  await cleanup();
+  process.exit(0);
+});
+process.on('SIGTERM', async () => {
+  await cleanup();
+  process.exit(0);
 });
 
 async function test(name, fn) {
