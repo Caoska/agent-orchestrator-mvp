@@ -15,6 +15,27 @@ async function runComprehensiveTests() {
   const createdSchedules = [];
   const createdAgents = [];
   
+  // ALWAYS cleanup on exit, crash, or interrupt
+  const cleanup = async () => {
+    if (workspaceId && apiKey) {
+      console.log('\n🧹 Emergency cleanup...');
+      try {
+        await fetch(`${API_URL}/v1/workspaces/${workspaceId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        console.log('✅ Workspace cleaned up');
+      } catch (e) {
+        console.log(`❌ Cleanup failed: ${e.message}`);
+      }
+    }
+  };
+  
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+  process.on('uncaughtException', cleanup);
+  process.on('unhandledRejection', cleanup);
+  
   // Massive try/catch that ALWAYS cleans up workspace
   try {
     try {
@@ -823,6 +844,14 @@ async function runComprehensiveTests() {
   }
   
   console.log('\n🎉 Comprehensive tests completed!');
+  
+  // Remove event listeners
+  process.removeAllListeners('SIGINT');
+  process.removeAllListeners('SIGTERM');
+  process.removeAllListeners('uncaughtException');
+  process.removeAllListeners('unhandledRejection');
+  
+  await cleanup();
 }
 
 runComprehensiveTests().catch(console.error);
