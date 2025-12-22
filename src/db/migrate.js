@@ -121,7 +121,16 @@ async function migrate() {
       
       // Make steps nullable and add constraint for workflow formats
       await client.query(`
-        ALTER TABLE agents ALTER COLUMN steps DROP NOT NULL;
+        DO $$ 
+        BEGIN
+          BEGIN
+            ALTER TABLE agents ALTER COLUMN steps DROP NOT NULL;
+          EXCEPTION
+            WHEN OTHERS THEN
+              -- Column might already be nullable, ignore error
+              NULL;
+          END;
+        END $$;
       `);
       
       await client.query(`
