@@ -172,97 +172,125 @@ function findConnectedNodes(nodes, connections) {
   return Array.from(connected);
 }
 
-// Execute workflow as a graph
+// Find nodes that can execute in parallel from a given node
+function findParallelNodes(fromNodeId, connections, completedNodes) {
+  const outgoingConnections = connections.filter(c => c.from === fromNodeId);
+  const parallelTargets = outgoingConnections.map(c => c.to);
+  
+  // Filter out already completed nodes
+  return parallelTargets.filter(nodeId => !completedNodes.has(nodeId));
+}
+
+// Find nodes that are ready to execute (all dependencies completed)
+function findReadyNodes(nodes, connections, completedNodes) {
+  return nodes.filter(node => {
+    if (completedNodes.has(node.id)) return false;
+    
+    // Find all incoming connections to this node
+    const incomingConnections = connections.filter(c => c.to === node.id);
+    
+    // If no incoming connections, it's a start node
+    if (incomingConnections.length === 0) return true;
+    
+    // Check if all dependencies are completed
+    return incomingConnections.every(conn => completedNodes.has(conn.from));
+  });
+}
+
+// Execute workflow as a graph with parallel support
 async function executeWorkflow(workflow, initialContext, stepLogs) {
   const { nodes, connections } = normalizeWorkflow(workflow);
   const context = { ...initialContext };
   const nodeOutputs = {};
-  const visited = new Set();
-  const MAX_ITERATIONS = 1000; // Prevent infinite loops
+  const completedNodes = new Set();
+  const MAX_ITERATIONS = 1000;
   let iterations = 0;
   
   // Find all connected nodes starting from triggers or first node
   const connectedNodes = findConnectedNodes(nodes, connections);
   console.log(`Executing ${connectedNodes.length} connected nodes out of ${nodes.length} total nodes`);
   
-  // Find starting node (trigger or first connected node)
-  let currentNodeId = connectedNodes[0]?.id;
-  
-  while (currentNodeId && iterations < MAX_ITERATIONS) {
+  while (completedNodes.size < connectedNodes.length && iterations < MAX_ITERATIONS) {
     iterations++;
     
-    // Prevent infinite loops by tracking visits
-    const visitKey = `${currentNodeId}_${iterations}`;
-    if (visited.has(visitKey)) {
-      console.warn(`Loop detected at ${currentNodeId}, breaking`);
+    // Find nodes ready to execute
+    const readyNodes = findReadyNodes(connectedNodes, connections, completedNodes);
+    
+    if (readyNodes.length === 0) {
+      console.warn('No ready nodes found, possible circular dependency');
       break;
     }
-    visited.add(visitKey);
     
-    const node = connectedNodes.find(n => n.id === currentNodeId);
-    if (!node) break;
+    console.log(`Iteration ${iterations}: Executing ${readyNodes.length} nodes in parallel:`, 
+      readyNodes.map(n => `${n.id}(${n.type})`));
     
-    const stepStart = Date.now();
-    console.log(`Executing node ${currentNodeId}: ${node.type}`);
-    
-    try {
-      // Build context with all previous node outputs
-      const execContext = { ...context, ...nodeOutputs };
+    // Execute ready nodes in parallel
+    const nodePromises = readyNodes.map(async (node) => {
+      const stepStart = Date.now();
       
-      const result = await executeStep(node, execContext);
-      const duration = Date.now() - stepStart;
-      
-      // Store output
-      nodeOutputs[currentNodeId] = result;
-      
-      // Debug: log node structure to understand config availability
-      console.log('Worker node structure:', JSON.stringify(node, null, 2));
-      
-      stepLogs.push({
-        node_id: currentNodeId,
-        type: node.type,
-        config: node.config,
-        status: "success",
-        duration_ms: duration,
-        output: result,
-        timestamp: new Date().toISOString(),
-        usingPlatformCredentials: context._usingPlatformCredentials || false
-      });
-      
-      // Determine next node based on connections
-      let nextNodeId = null;
-      
-      if (node.type === 'conditional') {
-        // Branch based on condition result
-        const conditionMet = result.result === true || result === true;
-        const port = conditionMet ? 'true' : 'false';
-        const connection = connections.find(c => c.from === currentNodeId && c.fromPort === port);
-        nextNodeId = connection?.to;
+      try {
+        // Build context with all previous node outputs
+        const execContext = { ...context, ...nodeOutputs };
         
-        console.log(`Conditional result: ${conditionMet}, next: ${nextNodeId}`);
-      } else {
-        // Follow normal output connection
-        const connection = connections.find(c => c.from === currentNodeId && c.fromPort === 'output');
-        nextNodeId = connection?.to;
-        console.log(`Looking for connection from ${currentNodeId} with port 'output', found: ${nextNodeId}`);
+        const result = await executeStep(node, execContext);
+        const duration = Date.now() - stepStart;
+        
+        return {
+          nodeId: node.id,
+          node,
+          result,
+          duration,
+          success: true
+        };
+      } catch (stepError) {
+        const duration = Date.now() - stepStart;
+        
+        return {
+          nodeId: node.id,
+          node,
+          error: stepError,
+          duration,
+          success: false
+        };
       }
-      
-      currentNodeId = nextNodeId;
-      
-    } catch (stepError) {
-      const duration = Date.now() - stepStart;
-      
-      stepLogs.push({
-        node_id: currentNodeId,
-        type: node.type,
-        config: node.config,
-        status: "failed",
-        duration_ms: duration,
-        error: stepError.message,
-        timestamp: new Date().toISOString()
-      });
-      
-      throw stepError;
+    });
+    
+    // Wait for all parallel executions to complete
+    const results = await Promise.all(nodePromises);
+    
+    // Process results
+    for (const { nodeId, node, result, error, duration, success } of results) {
+      if (success) {
+        // Store output
+        nodeOutputs[nodeId] = result;
+        completedNodes.add(nodeId);
+        
+        stepLogs.push({
+          node_id: nodeId,
+          type: node.type,
+          config: node.config,
+          status: "success",
+          duration_ms: duration,
+          output: result,
+          timestamp: new Date().toISOString(),
+          usingPlatformCredentials: context._usingPlatformCredentials || false
+        });
+        
+        console.log(`✓ Node ${nodeId} completed successfully`);
+      } else {
+        stepLogs.push({
+          node_id: nodeId,
+          type: node.type,
+          config: node.config,
+          status: "failed",
+          duration_ms: duration,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.error(`✗ Node ${nodeId} failed:`, error.message);
+        throw error; // Fail fast on any error
+      }
     }
   }
   
@@ -270,6 +298,12 @@ async function executeWorkflow(workflow, initialContext, stepLogs) {
     throw new Error('Workflow exceeded maximum iterations (possible infinite loop)');
   }
   
+  if (completedNodes.size < connectedNodes.length) {
+    const remaining = connectedNodes.filter(n => !completedNodes.has(n.id));
+    throw new Error(`Workflow incomplete: ${remaining.length} nodes not executed: ${remaining.map(n => n.id).join(', ')}`);
+  }
+  
+  console.log(`Workflow completed: ${completedNodes.size} nodes executed in ${iterations} iterations`);
   return nodeOutputs;
 }
 
