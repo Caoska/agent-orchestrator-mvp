@@ -304,6 +304,14 @@
           <div class="stat-value" id="executionHours">0</div>
           <div class="stat-label">Execution Hours</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-value" id="emailsThisMonth">0</div>
+          <div class="stat-label">Emails This Month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="smsThisMonth">0</div>
+          <div class="stat-label">SMS This Month</div>
+        </div>
       </div>
       
       <div class="section">
@@ -607,24 +615,52 @@
       
       const plan = workspace?.plan || 'free';
       const limits = {
-        free: 200,
-        starter: 5000,
-        pro: 50000,
-        enterprise: -1
+        free: { runs: 200, emails: 10, sms: 10 },
+        starter: { runs: 5000, emails: 100, sms: 50 },
+        pro: { runs: 50000, emails: 1000, sms: 500 },
+        scale: { runs: 50000, emails: 10000, sms: 5000 },
+        enterprise: { runs: -1, emails: -1, sms: -1 }
       };
       
       const limit = limits[plan];
-      if (limit === -1) return; // unlimited
+      if (!limit) return;
       
-      const usage = workspace?.runs_this_month || 0;
-      const percent = (usage / limit) * 100;
+      const runUsage = workspace?.runs_this_month || 0;
+      const emailUsage = workspace?.emails_this_month || 0;
+      const smsUsage = workspace?.sms_this_month || 0;
       
-      console.log('Usage check:', { usage, limit, percent }); // Debug
+      const warnings = [];
       
-      if (percent >= 80) {
-        const remaining = limit - usage;
-        document.getElementById('warningText').textContent = 
-          `You've used ${usage} of ${limit} runs this month (${percent.toFixed(0)}%). ${remaining} runs remaining.`;
+      // Check runs limit
+      if (limit.runs !== -1) {
+        const runPercent = (runUsage / limit.runs) * 100;
+        if (runPercent >= 80) {
+          const remaining = limit.runs - runUsage;
+          warnings.push(`Runs: ${runUsage}/${limit.runs} (${runPercent.toFixed(0)}%) - ${remaining} remaining`);
+        }
+      }
+      
+      // Check email limit (platform credentials only)
+      if (limit.emails !== -1) {
+        const emailPercent = (emailUsage / limit.emails) * 100;
+        if (emailPercent >= 80) {
+          const remaining = limit.emails - emailUsage;
+          warnings.push(`Emails: ${emailUsage}/${limit.emails} (${emailPercent.toFixed(0)}%) - ${remaining} remaining`);
+        }
+      }
+      
+      // Check SMS limit (platform credentials only)
+      if (limit.sms !== -1) {
+        const smsPercent = (smsUsage / limit.sms) * 100;
+        if (smsPercent >= 80) {
+          const remaining = limit.sms - smsUsage;
+          warnings.push(`SMS: ${smsUsage}/${limit.sms} (${smsPercent.toFixed(0)}%) - ${remaining} remaining`);
+        }
+      }
+      
+      if (warnings.length > 0) {
+        document.getElementById('warningText').innerHTML = 
+          `<strong>Usage Warning:</strong><br>${warnings.join('<br>')}`;
         document.getElementById('usageWarning').classList.remove('hidden');
       }
     }
@@ -743,6 +779,8 @@
         document.getElementById('stepsThisMonth').textContent = currentWorkspace?.steps_this_month || 0;
         document.getElementById('httpCallsThisMonth').textContent = currentWorkspace?.http_calls_this_month || 0;
         document.getElementById('executionHours').textContent = ((currentWorkspace?.execution_seconds_this_month || 0) / 3600).toFixed(2);
+        document.getElementById('emailsThisMonth').textContent = currentWorkspace?.emails_this_month || 0;
+        document.getElementById('smsThisMonth').textContent = currentWorkspace?.sms_this_month || 0;
         
         // Check usage and show warning
         checkUsageWarning(currentWorkspace);
