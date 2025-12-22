@@ -246,6 +246,7 @@ const worker = new Worker(
         project_id,
         input: input || {},
         webhook: null,
+        trigger_type: 'scheduled', // Mark as scheduled run
         status: "queued",
         created_at: new Date().toISOString()
       };
