@@ -39,7 +39,8 @@ async function test(name, fn) {
   } catch (err) {
     console.error(`❌ ${name}`);
     console.error(`   ${err.message}`);
-    process.exit(1);
+    // Don't exit immediately - let cleanup run
+    throw err;
   }
 }
 
@@ -62,7 +63,9 @@ async function apiCall(method, path, body = null) {
 }
 
 // Auth Tests
-await test('Health check', async () => {
+async function runAllTests() {
+  try {
+    await test('Health check', async () => {
   const data = await apiCall('GET', '/health');
   if (data.status !== 'healthy' && data.status !== 'degraded') {
     throw new Error(`Health check failed: ${data.status}`);
@@ -1008,3 +1011,46 @@ await test('Delete workspace', async () => {
 });
 
 console.log('\n🎉 All tests passed!');
+
+  } catch (error) {
+    console.error('\n💥 Test failed:', error.message);
+    
+    // Always attempt cleanup even on failure
+    try {
+      console.log('\n🧹 Running cleanup after failure...');
+      
+      // Clear Redis repeatable jobs
+      const { Queue } = await import('bullmq');
+      const IORedis = (await import('ioredis')).default;
+      const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', { maxRetriesPerRequest: null });
+      const queue = new Queue('runs', { connection });
+      
+      const repeatableJobs = await queue.getRepeatableJobs();
+      console.log(`   Found ${repeatableJobs.length} repeatable jobs in Redis`);
+      
+      for (const job of repeatableJobs) {
+        if (job.id && job.id.startsWith('schedule_')) {
+          await queue.removeRepeatableByKey(job.key);
+          console.log(`   Cleared repeatable job: ${job.id}`);
+        }
+      }
+      
+      await connection.quit();
+      
+      // Delete workspace
+      if (apiKey) {
+        await apiCall('DELETE', '/v1/workspace');
+        console.log('   ✅ Workspace deleted');
+      }
+      
+      console.log('   ✅ Cleanup completed');
+    } catch (cleanupError) {
+      console.error('   ❌ Cleanup failed:', cleanupError.message);
+    }
+    
+    process.exit(1);
+  }
+}
+
+// Run all tests
+runAllTests().catch(console.error);
