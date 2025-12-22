@@ -13,18 +13,12 @@ console.log(`Worker detection: orchestrator=${isOrchestrator}, fast=${isFastWork
 
 // Run migrations before starting server (not worker)
 if (!isWorker) {
-  console.log('Running database migrations...');
-  const migrate = spawn('node', ['src/db/migrate.js'], { stdio: 'inherit' });
+  console.log('Running cleanup script...');
+  const cleanup = spawn('node', ['scripts/cleanup-orphaned-jobs.js'], { stdio: 'inherit' });
   
-  migrate.on('close', (code) => {
-    if (code !== 0) {
-      console.error('Migration failed, exiting');
-      process.exit(1);
-    }
-    
-    const script = 'src/server/index.js';
-    console.log(`Starting ${script}`);
-    spawn('node', [script], { stdio: 'inherit', env: process.env });
+  cleanup.on('close', (code) => {
+    console.log('Cleanup completed, exiting');
+    process.exit(0);
   });
 } else {
   // Determine which worker to start
