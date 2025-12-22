@@ -1,5 +1,5 @@
 import fetch from "node-fetch";
-const API_URL = "http://localhost:4000";
+const API_URL = "https://agent-orchestrator-mvp-production.up.railway.app";
 
 async function test() {
   console.log("Testing scheduled runs...\n");

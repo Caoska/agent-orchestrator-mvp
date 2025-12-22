@@ -6,10 +6,6 @@ dotenv.config();
 
 // Use Railway Redis URL - this should be set in Railway environment
 const REDIS_URL = process.env.REDIS_URL;
-if (!REDIS_URL) {
-  console.error('❌ REDIS_URL environment variable not set');
-  process.exit(1);
-}
 
 console.log('🔍 Connecting to Redis:', REDIS_URL.replace(/:[^:]*@/, ':***@'));
 
