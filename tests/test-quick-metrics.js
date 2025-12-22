@@ -92,6 +92,15 @@ async function quickTest() {
     const verifyData = await verifyRes.json();
     console.log('Agent verification:', verifyData.agent_id ? 'EXISTS' : 'NOT FOUND');
     
+    // Verify project exists
+    console.log('\n4.2️⃣ Verifying project exists...');
+    const projectVerifyRes = await fetch(`${API_URL}/v1/projects`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    const projects = await projectVerifyRes.json();
+    console.log('Projects found:', projects.length);
+    console.log('Our project ID:', projectId);
+    
     // 5. Run agent
     console.log('\n5️⃣ Running agent...');
     const runRes = await fetch(`${API_URL}/v1/runs`, {
