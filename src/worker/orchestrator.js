@@ -285,6 +285,15 @@ const orchestrator = new Worker(
       const httpCalls = stepLogs.filter(s => s.type === 'http').length;
       const webhooks = stepLogs.filter(s => s.type === 'webhook').length;
       
+      // Debug: log usage tracking
+      console.log('Usage tracking:', {
+        steps: stepLogs.length,
+        httpCalls,
+        webhooks,
+        executionSeconds,
+        stepTypes: stepLogs.map(s => s.type)
+      });
+      
       // Count platform email/SMS usage (not BYOC)
       const platformEmails = stepLogs.filter(s => 
         s.type === 'sendgrid' && s.usingPlatformCredentials
