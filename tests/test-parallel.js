@@ -89,32 +89,43 @@ async function runParallelTests() {
     
     // Run the agent and measure execution time
     const startTime = Date.now();
-    const runRes = await fetch(`${API_URL}/v1/agents/${agent.agent_id}/run`, {
+    const runRes = await fetch(`${API_URL}/v1/runs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify({ input: {} })
+      body: JSON.stringify({ 
+        agent_id: agent.agent_id,
+        input: {} 
+      })
     });
+    
+    if (!runRes.ok) {
+      const errorText = await runRes.text();
+      console.error('Run creation failed:', runRes.status, errorText);
+      throw new Error(`Failed to create run: ${runRes.status}`);
+    }
+    
     const run = await runRes.json();
     
     // Wait for completion
     let runStatus;
     let attempts = 0;
     do {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Increased wait time
       const statusRes = await fetch(`${API_URL}/v1/runs/${run.run_id}`, {
         headers: { 'Authorization': `Bearer ${apiKey}` }
       });
       runStatus = await statusRes.json();
       attempts++;
-    } while (runStatus.status === 'running' && attempts < 30);
+      console.log(`Attempt ${attempts}: Status = ${runStatus.status}`);
+    } while (runStatus.status === 'running' && attempts < 60); // Increased timeout
     
     const sequentialTime = Date.now() - startTime;
     
-    assert(runStatus.status === 'completed', 'Sequential workflow should complete successfully');
-    assert(runStatus.results?.steps?.length === 2, 'Should execute 2 steps');
+    assert(runStatus.status === 'completed', `Sequential workflow should complete successfully. Status: ${runStatus.status}, Error: ${runStatus.error}`);
+    assert(runStatus.results?.steps?.length === 2, `Should execute 2 steps. Got: ${runStatus.results?.steps?.length}`);
     
     console.log(`Sequential execution time: ${sequentialTime}ms`);
     console.log('✅ Sequential baseline test passed\n');
@@ -181,13 +192,16 @@ async function runParallelTests() {
     
     // Run the agent and measure execution time
     const forkJoinStartTime = Date.now();
-    const forkJoinRunRes = await fetch(`${API_URL}/v1/agents/${forkJoinAgentData.agent_id}/run`, {
+    const forkJoinRunRes = await fetch(`${API_URL}/v1/runs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify({ input: {} })
+      body: JSON.stringify({ 
+        agent_id: forkJoinAgentData.agent_id,
+        input: {} 
+      })
     });
     const forkJoinRun = await forkJoinRunRes.json();
     

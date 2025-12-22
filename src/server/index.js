@@ -1165,6 +1165,45 @@ app.post("/v1/admin/cleanup-redis", async (req, res) => {
   }
 });
 
+// Queue status endpoint
+app.get("/v1/admin/queue-status", async (req, res) => {
+  try {
+    const { Queue } = await import('bullmq');
+    const IORedis = (await import('ioredis')).default;
+    const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379');
+    
+    const runsQueue = new Queue('runs', { connection });
+    const fastQueue = new Queue('fast-jobs', { connection });
+    const slowQueue = new Queue('slow-jobs', { connection });
+    
+    const [
+      runsWaiting, runsActive, runsFailed,
+      fastWaiting, fastActive, fastFailed,
+      slowWaiting, slowActive, slowFailed
+    ] = await Promise.all([
+      runsQueue.getWaiting(), runsQueue.getActive(), runsQueue.getFailed(),
+      fastQueue.getWaiting(), fastQueue.getActive(), fastQueue.getFailed(),
+      slowQueue.getWaiting(), slowQueue.getActive(), slowQueue.getFailed()
+    ]);
+    
+    await connection.quit();
+    
+    res.json({
+      runs: { waiting: runsWaiting.length, active: runsActive.length, failed: runsFailed.length },
+      fast: { waiting: fastWaiting.length, active: fastActive.length, failed: fastFailed.length },
+      slow: { waiting: slowWaiting.length, active: slowActive.length, failed: slowFailed.length },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    req.logger?.error('Queue status check failed', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 app.get("/metrics", async (req, res) => {
   res.set('Content-Type', register.contentType);
   res.end(await register.metrics());
