@@ -13,6 +13,7 @@ SiloWorker is a production-ready workflow automation platform that goes beyond Z
 | Feature | Zapier | SiloWorker |
 |---------|--------|------------|
 | **Database Access** | ❌ No direct queries | ✅ Full SQL support (PostgreSQL, MySQL, SQLite) |
+| **Parallel Execution** | ❌ Sequential only | ✅ True fork/join parallel processing |
 | **Conditional Logic** | ❌ Basic if/then only | ✅ Complex multi-condition logic with AND/OR |
 | **Email Cost** | ❌ $0.002/email + overages | ✅ BYOC: Use your SendGrid key = $0 |
 | **SMS Cost** | ❌ $0.05/SMS + overages | ✅ BYOC: Use your Twilio rates |
@@ -20,6 +21,21 @@ SiloWorker is a production-ready workflow automation platform that goes beyond Z
 | **Version Control** | ❌ No git integration | ✅ JSON configs, git-friendly |
 
 **Real Savings Example:** 10K emails + 1K SMS monthly = **Save $75/month (80%)** with BYOC
+
+## ⚡ Parallel Processing
+
+SiloWorker executes workflow steps in parallel when possible, dramatically reducing execution time:
+
+```
+Sequential (Zapier):     Parallel (SiloWorker):
+Step 1: API call (2s)    Step 1: API call (2s)
+Step 2: Email (1s)       ├─ Step 2: Email (1s)      ⚡
+Step 3: SMS (1s)         ├─ Step 3: SMS (1s)        ⚡  
+Step 4: Database (0.5s)  └─ Step 4: Database (0.5s) ⚡
+Total: 4.5s              Total: 3s (33% faster)
+```
+
+**Visual Indicators:** Orange dashed connections show parallel execution in the UI
 
 ## 🛠️ 9 Built-in Tools
 
