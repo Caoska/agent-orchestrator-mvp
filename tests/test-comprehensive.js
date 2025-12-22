@@ -99,6 +99,15 @@ async function runComprehensiveTests() {
         name: 'LLM Tool (Expected to fail)',
         steps: [{ type: 'llm', config: { prompt: 'Say hello', name: 'Test LLM' } }],
         shouldSucceed: false // Will fail without LLM API key
+      },
+      {
+        name: 'Disconnected Tools Test',
+        steps: [
+          { type: 'http', config: { url: 'https://api.coinbase.com/v2/exchange-rates?currency=BTC', name: 'Get Bitcoin Price' } },
+          { type: 'sendgrid', config: { to: 'test@example.com', subject: 'Test', text: 'Test', name: 'Disconnected Email' } }
+        ],
+        shouldSucceed: true, // Should succeed but only run connected tools
+        expectWarnings: true // Should get warnings about disconnected tools
       }
     ];
     
@@ -125,6 +134,11 @@ async function runComprehensiveTests() {
         agentId = agent.agent_id;
         createdAgents.push(agentId); // Track for cleanup
         console.log(`    ✅ CREATE: Agent created`);
+        
+        // Check for warnings if expected
+        if (test.expectWarnings && agent.warnings) {
+          console.log(`    ⚠️  WARNINGS: ${agent.warnings.join('; ')}`);
+        }
         
         // 2. EDIT agent (update name)
         const editRes = await fetch(`${API_URL}/v1/agents/${agentId}`, {

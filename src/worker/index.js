@@ -123,6 +123,54 @@ function normalizeWorkflow(agent) {
   return { nodes, connections };
 }
 
+// Find all nodes that are connected in the workflow graph
+function findConnectedNodes(nodes, connections) {
+  if (nodes.length === 0) return [];
+  
+  // For array-style workflows (no explicit connections), all nodes are connected
+  if (connections.length === 0) {
+    return nodes;
+  }
+  
+  // For graph-style workflows, find connected components
+  const connected = new Set();
+  const visited = new Set();
+  
+  // Start from trigger nodes or first node
+  const triggerTypes = ['manual', 'cron', 'webhook_trigger', 'email_trigger', 'sms_trigger'];
+  const startNodes = nodes.filter(n => triggerTypes.includes(n.type));
+  const startNode = startNodes.length > 0 ? startNodes[0] : nodes[0];
+  
+  if (!startNode) return [];
+  
+  // DFS to find all connected nodes
+  function dfs(nodeId) {
+    if (visited.has(nodeId)) return;
+    visited.add(nodeId);
+    
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      connected.add(node);
+      
+      // Find all nodes connected from this one
+      connections
+        .filter(c => c.from === nodeId)
+        .forEach(c => dfs(c.to));
+    }
+  }
+  
+  dfs(startNode.id);
+  
+  // Log disconnected tools for debugging
+  const disconnected = nodes.filter(n => !connected.has(n));
+  if (disconnected.length > 0) {
+    console.log(`Skipping ${disconnected.length} disconnected tools:`, 
+      disconnected.map(n => `${n.type}${n.config?.name ? ` (${n.config.name})` : ''}`));
+  }
+  
+  return Array.from(connected);
+}
+
 // Execute workflow as a graph
 async function executeWorkflow(workflow, initialContext, stepLogs) {
   const { nodes, connections } = normalizeWorkflow(workflow);
@@ -132,8 +180,12 @@ async function executeWorkflow(workflow, initialContext, stepLogs) {
   const MAX_ITERATIONS = 1000; // Prevent infinite loops
   let iterations = 0;
   
-  // Find starting node (connected from trigger or first node)
-  let currentNodeId = nodes[0]?.id;
+  // Find all connected nodes starting from triggers or first node
+  const connectedNodes = findConnectedNodes(nodes, connections);
+  console.log(`Executing ${connectedNodes.length} connected nodes out of ${nodes.length} total nodes`);
+  
+  // Find starting node (trigger or first connected node)
+  let currentNodeId = connectedNodes[0]?.id;
   
   while (currentNodeId && iterations < MAX_ITERATIONS) {
     iterations++;
@@ -146,7 +198,7 @@ async function executeWorkflow(workflow, initialContext, stepLogs) {
     }
     visited.add(visitKey);
     
-    const node = nodes.find(n => n.id === currentNodeId);
+    const node = connectedNodes.find(n => n.id === currentNodeId);
     if (!node) break;
     
     const stepStart = Date.now();

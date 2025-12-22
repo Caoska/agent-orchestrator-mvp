@@ -22,6 +22,73 @@ import { verificationEmail, passwordResetEmail } from "../../lib/email-templates
 import { metricsMiddleware, register, updateQueueDepth, updateDbConnections } from "../../lib/metrics.js";
 import { correlationMiddleware, errorHandler } from "../../lib/middleware.js";
 import { checkHealth } from "../../lib/health.js";
+
+// Validate workflow connections and return warnings
+function validateWorkflowConnections(steps) {
+  const warnings = [];
+  
+  if (!Array.isArray(steps) || steps.length === 0) {
+    return warnings;
+  }
+  
+  // For array-style workflows, assume all connected (legacy format)
+  // For graph-style workflows, check for disconnected nodes
+  const hasExplicitConnections = steps.some(step => step.connections && step.connections.length > 0);
+  
+  if (hasExplicitConnections) {
+    // Graph-style workflow - check for disconnected tools
+    const nodes = steps.map((step, i) => ({
+      id: `node_${i}`,
+      type: step.tool || step.type,
+      config: step.config || step,
+      connections: step.connections || []
+    }));
+    
+    const connections = [];
+    nodes.forEach(node => {
+      if (node.connections && node.connections.length > 0) {
+        node.connections.forEach(conn => {
+          connections.push({
+            from: node.id,
+            to: conn.to
+          });
+        });
+      }
+    });
+    
+    // Find disconnected nodes
+    const connected = new Set();
+    const visited = new Set();
+    
+    // Start from first node
+    if (nodes.length > 0) {
+      function dfs(nodeId) {
+        if (visited.has(nodeId)) return;
+        visited.add(nodeId);
+        
+        const node = nodes.find(n => n.id === nodeId);
+        if (node) {
+          connected.add(node);
+          connections
+            .filter(c => c.from === nodeId)
+            .forEach(c => dfs(c.to));
+        }
+      }
+      
+      dfs(nodes[0].id);
+    }
+    
+    const disconnected = nodes.filter(n => !connected.has(n));
+    if (disconnected.length > 0) {
+      const toolNames = disconnected.map(n => 
+        `[${(n.type || 'unknown').toUpperCase()}]${n.config?.name ? ` - ${n.config.name}` : ''}`
+      );
+      warnings.push(`${disconnected.length} tool${disconnected.length > 1 ? 's are' : ' is'} disconnected and will not execute: ${toolNames.join(', ')}`);
+    }
+  }
+  
+  return warnings;
+}
 import { logger } from "../../lib/logger.js";
 
 dotenv.config();
@@ -633,6 +700,9 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
   const agent = { agent_id, project_id, name, steps, trigger, retry_policy, timeout_seconds, webhook_secret, created_at: new Date().toISOString() };
   await data.createAgent(agent);
   
+  // Check for disconnected tools and generate warnings
+  const warnings = validateWorkflowConnections(steps);
+  
   // Auto-create schedules for cron/interval triggers
   if (trigger) {
     const triggers = Array.isArray(trigger) ? trigger : [trigger];
@@ -662,7 +732,12 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
     }
   }
   
-  res.json({ agent_id, webhook_secret });
+  const response = { agent_id, webhook_secret };
+  if (warnings.length > 0) {
+    response.warnings = warnings;
+  }
+  
+  res.json(response);
 });
 
 app.get("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
@@ -724,6 +799,9 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
   
   await data.updateAgent(req.params.id, { name, steps, trigger, retry_policy, timeout_seconds });
   
+  // Check for disconnected tools and generate warnings
+  const warnings = steps ? validateWorkflowConnections(steps) : [];
+  
   // Update schedules when trigger changes
   const db = getDb();
   if (db) {
@@ -761,7 +839,12 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
     }
   }
   
-  res.json({ updated: true });
+  const response = { updated: true };
+  if (warnings.length > 0) {
+    response.warnings = warnings;
+  }
+  
+  res.json(response);
 });
 
 app.post("/v1/runs", requireApiKey, requireWorkspace, rateLimit(60000, 100), async (req, res) => {
