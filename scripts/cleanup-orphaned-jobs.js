@@ -27,21 +27,14 @@ async function cleanupOrphanedJobs() {
   
   let removedCount = 0;
   
+  // Since there are 0 valid agents, remove ALL scheduled jobs
   for (const job of repeatableJobs) {
-    if (job.id && job.id.startsWith('schedule_')) {
-      // Extract agent_id from job data or check if agent exists
-      const jobData = job.data || {};
-      const agentId = jobData.agent_id;
-      
-      if (!agentId || !validAgentIds.has(agentId)) {
-        console.log(`Removing orphaned job: ${job.id} (agent: ${agentId || 'unknown'})`);
-        try {
-          await runQueue.removeRepeatableByKey(job.key);
-          removedCount++;
-        } catch (error) {
-          console.error(`Failed to remove job ${job.id}:`, error.message);
-        }
-      }
+    console.log(`Removing job with key: ${job.key}`);
+    try {
+      await runQueue.removeRepeatableByKey(job.key);
+      removedCount++;
+    } catch (error) {
+      console.error(`Failed to remove job:`, error.message);
     }
   }
   
