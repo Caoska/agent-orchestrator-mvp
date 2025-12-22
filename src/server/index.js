@@ -933,8 +933,14 @@ app.post("/v1/runs", requireApiKey, requireWorkspace, rateLimit(60000, 100), asy
   
   const run_id = "run_" + uuidv4();
   const run = {
-    run_id, agent_id, project_id, input, webhook: webhook || null,
-    trigger_type, status: "queued", created_at: new Date().toISOString()
+    run_id, 
+    agent_id, 
+    project_id: agent.project_id, // Use agent's project_id
+    input, 
+    webhook: webhook || null,
+    trigger_type, 
+    status: "queued", 
+    created_at: new Date().toISOString()
   };
   
   await data.createRun(run);
