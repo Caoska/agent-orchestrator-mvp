@@ -318,14 +318,13 @@ const worker = new Worker(
     
     console.log("Worker: processing run", actualRunId, scheduled ? "(scheduled)" : "");
     
-    // Fetch from Redis
+    // Fetch from Redis and database
     const runData = await connection.get(`run:${actualRunId}`);
     if (!runData) throw new Error(`Run ${actualRunId} not found`);
     const run = JSON.parse(runData);
     
-    const agentData = await connection.get(`agent:${run.agent_id}`);
-    if (!agentData) throw new Error(`Agent ${run.agent_id} not found`);
-    const agent = JSON.parse(agentData);
+    const agent = await data.getAgent(run.agent_id);
+    if (!agent) throw new Error(`Agent ${run.agent_id} not found`);
     
     run.status = "running";
     run.started_at = new Date().toISOString();
