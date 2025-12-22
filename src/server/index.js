@@ -727,9 +727,20 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
     retry_policy, 
     timeout_seconds, 
     webhook_secret, 
-    created_at: new Date().toISOString(),
-    ...workflowData
+    created_at: new Date().toISOString()
   };
+  
+  // For now, store everything in steps field for backward compatibility
+  if (workflowSteps) {
+    agent.steps = workflowSteps;
+  } else {
+    // Store nodes/connections in steps field as a special format
+    agent.steps = [{ 
+      type: '__graph__', 
+      nodes: workflowNodes, 
+      connections: workflowConnections 
+    }];
+  }
   
   await data.createAgent(agent);
   

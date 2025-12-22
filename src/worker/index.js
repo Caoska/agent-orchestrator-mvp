@@ -78,6 +78,12 @@ async function executeStep(step, context) {
 
 // Convert array format to graph format for backward compatibility
 function normalizeWorkflow(agent) {
+  // Check if it's the special graph format stored in steps
+  if (agent.steps && agent.steps.length === 1 && agent.steps[0].type === '__graph__') {
+    const graphStep = agent.steps[0];
+    return { nodes: graphStep.nodes, connections: graphStep.connections };
+  }
+  
   // If already in graph format (has nodes), return as-is
   if (agent.nodes && agent.connections) {
     return { nodes: agent.nodes, connections: agent.connections };
