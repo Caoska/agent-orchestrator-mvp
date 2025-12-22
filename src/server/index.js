@@ -632,6 +632,36 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
   const webhook_secret = generateWebhookSecret();
   const agent = { agent_id, project_id, name, steps, trigger, retry_policy, timeout_seconds, webhook_secret, created_at: new Date().toISOString() };
   await data.createAgent(agent);
+  
+  // Auto-create schedules for cron/interval triggers
+  if (trigger) {
+    const triggers = Array.isArray(trigger) ? trigger : [trigger];
+    for (const t of triggers) {
+      if (t.type === 'cron' && t.schedule) {
+        const schedule_id = "sched_" + uuidv4();
+        const schedule = {
+          schedule_id,
+          agent_id,
+          project_id,
+          input: t.input || {},
+          cron: t.schedule,
+          interval_seconds: null,
+          enabled: true
+        };
+        
+        const db = getDb();
+        if (db) {
+          await db.query(
+            'INSERT INTO schedules (schedule_id, agent_id, project_id, input, cron, interval_seconds, enabled) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [schedule_id, agent_id, project_id, JSON.stringify(t.input || {}), t.schedule, null, true]
+          );
+        }
+        
+        await scheduleRun(schedule);
+      }
+    }
+  }
+  
   res.json({ agent_id, webhook_secret });
 });
 
@@ -647,6 +677,16 @@ app.delete("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) =
   const project = await data.getProject(agent.project_id);
   if (!project || project.workspace_id !== req.workspace.workspace_id) {
     return res.status(403).json({ error: "access denied" });
+  }
+  
+  // Clean up any schedules for this agent
+  const db = getDb();
+  if (db) {
+    const schedules = await db.query('SELECT schedule_id FROM schedules WHERE agent_id = $1', [req.params.id]);
+    for (const schedule of schedules.rows) {
+      await removeSchedule(schedule.schedule_id);
+      await db.query('DELETE FROM schedules WHERE schedule_id = $1', [schedule.schedule_id]);
+    }
   }
   
   await data.deleteAgent(req.params.id);
