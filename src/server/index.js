@@ -723,6 +723,44 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
   if (name && name.length > 200) return res.status(400).json({ error: "Name too long (max 200 chars)" });
   
   await data.updateAgent(req.params.id, { name, steps, trigger, retry_policy, timeout_seconds });
+  
+  // Update schedules when trigger changes
+  const db = getDb();
+  if (db) {
+    // Remove existing schedules for this agent
+    const existingSchedules = await db.query('SELECT schedule_id FROM schedules WHERE agent_id = $1', [req.params.id]);
+    for (const schedule of existingSchedules.rows) {
+      await removeSchedule(schedule.schedule_id);
+      await db.query('DELETE FROM schedules WHERE schedule_id = $1', [schedule.schedule_id]);
+    }
+    
+    // Create new schedules if trigger has cron
+    if (trigger) {
+      const triggers = Array.isArray(trigger) ? trigger : [trigger];
+      for (const t of triggers) {
+        if (t.type === 'cron' && t.schedule) {
+          const schedule_id = "sched_" + uuidv4();
+          const schedule = {
+            schedule_id,
+            agent_id: req.params.id,
+            project_id: agent.project_id,
+            input: t.input || {},
+            cron: t.schedule,
+            interval_seconds: null,
+            enabled: true
+          };
+          
+          await db.query(
+            'INSERT INTO schedules (schedule_id, agent_id, project_id, input, cron, interval_seconds, enabled) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [schedule_id, req.params.id, agent.project_id, JSON.stringify(t.input || {}), t.schedule, null, true]
+          );
+          
+          await scheduleRun(schedule);
+        }
+      }
+    }
+  }
+  
   res.json({ updated: true });
 });
 
