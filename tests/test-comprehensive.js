@@ -221,6 +221,265 @@ async function runComprehensiveTests() {
       }
     }
     
+    // Parallel Execution Tests
+    console.log('\n🔀 Testing Parallel Execution...');
+    
+    // Test 1: Sequential baseline for comparison
+    let sequentialTime = 0;
+    try {
+      console.log('  Testing Sequential Baseline...');
+      
+      const sequentialAgent = {
+        name: 'Sequential Baseline Test',
+        project_id: projectId,
+        steps: [
+          { type: 'http', config: { url: 'https://httpbin.org/delay/1', name: 'API Call A' } },
+          { type: 'http', config: { url: 'https://httpbin.org/delay/1', name: 'API Call B' } }
+        ]
+      };
+      
+      const agentRes = await fetch(`${API_URL}/v1/agents`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(sequentialAgent)
+      });
+      const agent = await agentRes.json();
+      const agentId = agent.agent_id;
+      createdAgents.push(agentId);
+      
+      const startTime = Date.now();
+      const runRes = await fetch(`${API_URL}/v1/agents/${agentId}/run`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({ input: {} })
+      });
+      const run = await runRes.json();
+      
+      // Wait for completion
+      let runStatus;
+      let attempts = 0;
+      do {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const statusRes = await fetch(`${API_URL}/v1/runs/${run.run_id}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        runStatus = await statusRes.json();
+        attempts++;
+      } while (runStatus.status === 'running' && attempts < 30);
+      
+      sequentialTime = Date.now() - startTime;
+      
+      if (runStatus.status === 'completed' && runStatus.results?.steps?.length === 2) {
+        console.log(`    ✅ Sequential baseline: ${sequentialTime}ms`);
+      } else {
+        console.log(`    ❌ Sequential baseline failed: ${runStatus.status}`);
+      }
+      
+    } catch (error) {
+      console.log(`    ❌ Sequential baseline failed: ${error.message}`);
+    }
+    
+    // Test 2: Fork/Join pattern with graph format
+    try {
+      console.log('  Testing Fork/Join Pattern...');
+      
+      const forkJoinAgent = {
+        name: 'Fork Join Test',
+        project_id: projectId,
+        nodes: [
+          {
+            id: 'node_0',
+            type: 'transform',
+            config: {
+              name: 'Start',
+              code: 'return { message: "Starting parallel execution", timestamp: Date.now() }'
+            }
+          },
+          {
+            id: 'node_1', 
+            type: 'http',
+            config: {
+              name: 'API Call A',
+              url: 'https://httpbin.org/delay/1',
+              method: 'GET'
+            }
+          },
+          {
+            id: 'node_2',
+            type: 'http', 
+            config: {
+              name: 'API Call B',
+              url: 'https://httpbin.org/delay/1',
+              method: 'GET'
+            }
+          },
+          {
+            id: 'node_3',
+            type: 'transform',
+            config: {
+              name: 'Merge Results',
+              code: 'return { combined: { nodeA: input.node_1, nodeB: input.node_2, endTime: Date.now() } }'
+            }
+          }
+        ],
+        connections: [
+          { from: 'node_0', fromPort: 'output', to: 'node_1', toPort: 'input' },
+          { from: 'node_0', fromPort: 'output', to: 'node_2', toPort: 'input' },
+          { from: 'node_1', fromPort: 'output', to: 'node_3', toPort: 'input' },
+          { from: 'node_2', fromPort: 'output', to: 'node_3', toPort: 'input' }
+        ]
+      };
+      
+      const agentRes = await fetch(`${API_URL}/v1/agents`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(forkJoinAgent)
+      });
+      const agent = await agentRes.json();
+      const agentId = agent.agent_id;
+      createdAgents.push(agentId);
+      
+      const startTime = Date.now();
+      const runRes = await fetch(`${API_URL}/v1/agents/${agentId}/run`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({ input: {} })
+      });
+      const run = await runRes.json();
+      
+      // Wait for completion
+      let runStatus;
+      let attempts = 0;
+      do {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const statusRes = await fetch(`${API_URL}/v1/runs/${run.run_id}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        runStatus = await statusRes.json();
+        attempts++;
+      } while (runStatus.status === 'running' && attempts < 30);
+      
+      const parallelTime = Date.now() - startTime;
+      
+      if (runStatus.status === 'completed' && runStatus.results?.steps?.length === 4) {
+        const speedup = sequentialTime > 0 ? (sequentialTime / parallelTime).toFixed(2) : 'N/A';
+        console.log(`    ✅ Fork/Join pattern: ${parallelTime}ms (${speedup}x speedup)`);
+        
+        // Verify all nodes executed
+        const steps = runStatus.results.steps;
+        const nodeIds = steps.map(s => s.node_id).sort();
+        const expectedIds = ['node_0', 'node_1', 'node_2', 'node_3'];
+        const allNodesExecuted = expectedIds.every(id => nodeIds.includes(id));
+        
+        if (allNodesExecuted) {
+          console.log(`    ✅ All 4 nodes executed correctly`);
+        } else {
+          console.log(`    ❌ Missing nodes: expected ${expectedIds.join(',')}, got ${nodeIds.join(',')}`);
+        }
+      } else {
+        console.log(`    ❌ Fork/Join pattern failed: ${runStatus.status}, steps: ${runStatus.results?.steps?.length}`);
+      }
+      
+    } catch (error) {
+      console.log(`    ❌ Fork/Join pattern failed: ${error.message}`);
+    }
+    
+    // Test 3: Independent parallel branches
+    try {
+      console.log('  Testing Independent Parallel Branches...');
+      
+      const independentAgent = {
+        name: 'Independent Parallel Test',
+        project_id: projectId,
+        nodes: [
+          {
+            id: 'node_0',
+            type: 'transform',
+            config: {
+              name: 'Trigger',
+              code: 'return { start: true }'
+            }
+          },
+          {
+            id: 'node_1',
+            type: 'http',
+            config: {
+              name: 'Branch A',
+              url: 'https://httpbin.org/json',
+              method: 'GET'
+            }
+          },
+          {
+            id: 'node_2', 
+            type: 'transform',
+            config: {
+              name: 'Branch B',
+              code: 'return { branch: "B", processed: true }'
+            }
+          }
+        ],
+        connections: [
+          { from: 'node_0', fromPort: 'output', to: 'node_1', toPort: 'input' },
+          { from: 'node_0', fromPort: 'output', to: 'node_2', toPort: 'input' }
+        ]
+      };
+      
+      const agentRes = await fetch(`${API_URL}/v1/agents`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(independentAgent)
+      });
+      const agent = await agentRes.json();
+      const agentId = agent.agent_id;
+      createdAgents.push(agentId);
+      
+      const runRes = await fetch(`${API_URL}/v1/agents/${agentId}/run`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({ input: {} })
+      });
+      const run = await runRes.json();
+      
+      // Wait for completion
+      let runStatus;
+      let attempts = 0;
+      do {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const statusRes = await fetch(`${API_URL}/v1/runs/${run.run_id}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        runStatus = await statusRes.json();
+        attempts++;
+      } while (runStatus.status === 'running' && attempts < 30);
+      
+      if (runStatus.status === 'completed' && runStatus.results?.steps?.length === 3) {
+        console.log(`    ✅ Independent branches: 3 nodes executed`);
+      } else {
+        console.log(`    ❌ Independent branches failed: ${runStatus.status}, steps: ${runStatus.results?.steps?.length}`);
+      }
+      
+    } catch (error) {
+      console.log(`    ❌ Independent branches failed: ${error.message}`);
+    }
+    
     console.log('\n⏰ Testing Triggers (Create → Edit → Run → Delete)...');
     
     // Test Cron Schedule CRUD
