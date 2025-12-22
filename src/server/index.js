@@ -889,8 +889,6 @@ app.post("/v1/runs", requireApiKey, requireWorkspace, rateLimit(60000, 100), asy
 
   // Store in Redis for worker access
   await connection.set(`run:${run_id}`, JSON.stringify(run));
-  await connection.set(`agent:${agent_id}`, JSON.stringify(agent));
-  await connection.set(`project:${agent.project_id}`, JSON.stringify(project));
 
   await runQueue.add("run", { run_id }, { removeOnComplete: true, removeOnFail: false });
   res.json({ run_id, status: "queued" });

@@ -262,18 +262,25 @@ const orchestrator = new Worker(
     if (!runData) throw new Error(`Run ${actualRunId} not found`);
     const run = JSON.parse(runData);
     
-    const agentData = await connection.get(`agent:${run.agent_id}`);
-    if (!agentData) throw new Error(`Agent ${run.agent_id} not found`);
-    const agent = JSON.parse(agentData);
+    // Get agent and project from database
+    const agent = await data.getAgent(run.agent_id);
+    if (!agent) throw new Error(`Agent ${run.agent_id} not found`);
+    
+    const project = await data.getProject(run.project_id);
+    if (!project) throw new Error(`Project ${run.project_id} not found`);
+    
+    console.log('DEBUG: Database lookups:', { 
+      agent_id: run.agent_id, 
+      agent_found: !!agent,
+      project_id: run.project_id, 
+      project_found: !!project 
+    });
+    
+    const workspace = await data.getWorkspace(project.workspace_id);
+    if (!workspace) throw new Error(`Workspace ${project.workspace_id} not found`);
     
     run.status = "running";
     run.started_at = new Date().toISOString();
-    
-    // Get workspace for API keys from Redis/database
-    const projectData = await connection.get(`project:${run.project_id}`);
-    const project = projectData ? JSON.parse(projectData) : await data.getProject(run.project_id);
-    console.log('DEBUG: getProject result:', { project_id: run.project_id, project: project ? 'FOUND' : 'NULL', source: projectData ? 'REDIS' : 'DB' });
-    const workspace = project ? await data.getWorkspace(project.workspace_id) : null;
     
     const context = { input: run.input, _workspace: workspace };
     const stepLogs = [];
