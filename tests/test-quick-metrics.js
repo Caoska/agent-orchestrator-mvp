@@ -84,6 +84,14 @@ async function quickTest() {
     console.log('Agent response:', agentData);
     agentId = agentData.agent_id;
     
+    // Verify agent exists
+    console.log('\n4.1️⃣ Verifying agent exists...');
+    const verifyRes = await fetch(`${API_URL}/v1/agents/${agentId}`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    const verifyData = await verifyRes.json();
+    console.log('Agent verification:', verifyData.agent_id ? 'EXISTS' : 'NOT FOUND');
+    
     // 5. Run agent
     console.log('\n5️⃣ Running agent...');
     const runRes = await fetch(`${API_URL}/v1/runs`, {
@@ -131,6 +139,9 @@ async function quickTest() {
       const status = await statusRes.json();
       
       console.log(`  Status: ${status.status}`);
+      if (status.status === 'failed') {
+        console.log(`  Error: ${status.error}`);
+      }
       
       if (status.status === 'completed' || status.status === 'failed') {
         completed = true;
