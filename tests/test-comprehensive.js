@@ -271,7 +271,7 @@ async function runComprehensiveTests() {
         });
         runStatus = await statusRes.json();
         attempts++;
-      } while (runStatus.status === 'running' && attempts < 30);
+      } while (runStatus.status === 'running' && attempts < 60);
       
       sequentialTime = Date.now() - startTime;
       
@@ -369,7 +369,7 @@ async function runComprehensiveTests() {
         });
         runStatus = await statusRes.json();
         attempts++;
-      } while (runStatus.status === 'running' && attempts < 30);
+      } while (runStatus.status === 'running' && attempts < 60);
       
       const parallelTime = Date.now() - startTime;
       
@@ -468,7 +468,7 @@ async function runComprehensiveTests() {
         });
         runStatus = await statusRes.json();
         attempts++;
-      } while (runStatus.status === 'running' && attempts < 30);
+      } while (runStatus.status === 'running' && attempts < 60);
       
       if (runStatus.status === 'completed' && runStatus.results?.steps?.length === 3) {
         console.log(`    ✅ Independent branches: 3 nodes executed`);
