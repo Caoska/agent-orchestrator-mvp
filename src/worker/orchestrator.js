@@ -271,6 +271,7 @@ const orchestrator = new Worker(
     
     // Get workspace for API keys from database
     const project = await data.getProject(run.project_id);
+    console.log('DEBUG: getProject result:', { project_id: run.project_id, project: project ? 'FOUND' : 'NULL' });
     const workspace = project ? await data.getWorkspace(project.workspace_id) : null;
     
     const context = { input: run.input, _workspace: workspace };
