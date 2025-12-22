@@ -125,92 +125,126 @@ function routeStep(step, context, runId, nodeId) {
   }
 }
 
+// Find nodes that are ready to execute (all dependencies completed)
+function findReadyNodes(nodes, connections, completedNodes) {
+  return nodes.filter(node => {
+    if (completedNodes.has(node.id)) return false;
+    
+    // Find all incoming connections to this node
+    const incomingConnections = connections.filter(c => c.to === node.id);
+    
+    // If no incoming connections, it's a start node
+    if (incomingConnections.length === 0) return true;
+    
+    // Check if all dependencies are completed
+    return incomingConnections.every(conn => completedNodes.has(conn.from));
+  });
+}
+
 // Execute workflow by orchestrating steps across queues
 async function executeWorkflow(workflow, initialContext, runId, stepLogs) {
   const { nodes, connections } = normalizeWorkflow(workflow);
   const context = { ...initialContext };
   const nodeOutputs = {};
-  const visited = new Set();
+  const completedNodes = new Set();
   const MAX_ITERATIONS = 1000;
   let iterations = 0;
   
-  let currentNodeId = nodes[0]?.id;
+  console.log(`Orchestrating ${nodes.length} nodes with ${connections.length} connections`);
   
-  while (currentNodeId && iterations < MAX_ITERATIONS) {
+  while (completedNodes.size < nodes.length && iterations < MAX_ITERATIONS) {
     iterations++;
     
-    const visitKey = `${currentNodeId}_${iterations}`;
-    if (visited.has(visitKey)) {
-      console.warn(`Loop detected at ${currentNodeId}, breaking`);
+    // Find nodes ready to execute
+    const readyNodes = findReadyNodes(nodes, connections, completedNodes);
+    
+    if (readyNodes.length === 0) {
+      console.warn('No ready nodes found, possible circular dependency');
       break;
     }
-    visited.add(visitKey);
     
-    const node = nodes.find(n => n.id === currentNodeId);
-    if (!node) break;
+    console.log(`Iteration ${iterations}: Executing ${readyNodes.length} nodes in parallel:`, 
+      readyNodes.map(n => `${n.id}(${n.type})`));
     
-    console.log(`Orchestrating node ${currentNodeId}: ${node.type}`);
-    
-    try {
-      // Build context with all previous node outputs
-      const execContext = { ...context, ...nodeOutputs };
+    // Execute ready nodes in parallel
+    const nodePromises = readyNodes.map(async (node) => {
+      const stepStart = Date.now();
       
-      // Route to appropriate worker queue
-      const job = await routeStep(node, execContext, runId, currentNodeId);
-      
-      // Wait for job completion with proper QueueEvents
-      const result = await job.waitUntilFinished(
-        job.queueName === FAST_QUEUE_NAME ? fastQueueEvents : slowQueueEvents
-      );
-      
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      
-      // Store output
-      nodeOutputs[currentNodeId] = result.result;
-      
-      stepLogs.push({
-        node_id: currentNodeId,
-        type: node.type,
-        config: node.config,
-        status: "success",
-        duration_ms: result.duration,
-        output: result.result,
-        timestamp: new Date().toISOString(),
-        usingPlatformCredentials: result.usingPlatformCredentials || false
-      });
-      
-      // Determine next node
-      let nextNodeId = null;
-      
-      if (node.type === 'conditional') {
-        const conditionMet = result.result.result === true || result.result === true;
-        const port = conditionMet ? 'true' : 'false';
-        const connection = connections.find(c => c.from === currentNodeId && c.fromPort === port);
-        nextNodeId = connection?.to;
+      try {
+        // Build context with all previous node outputs
+        const execContext = { ...context, ...nodeOutputs };
         
-        console.log(`Conditional result: ${conditionMet}, next: ${nextNodeId}`);
-      } else {
-        const connection = connections.find(c => c.from === currentNodeId && c.fromPort === 'output');
-        nextNodeId = connection?.to;
-        console.log(`Orchestrator: Looking for connection from ${currentNodeId} with port 'output', found: ${nextNodeId}`);
+        // Route to appropriate worker queue
+        const job = await routeStep(node, execContext, runId, node.id);
+        
+        // Wait for job completion with proper QueueEvents
+        const result = await job.waitUntilFinished(
+          job.queueName === FAST_QUEUE_NAME ? fastQueueEvents : slowQueueEvents
+        );
+        
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+        
+        const duration = Date.now() - stepStart;
+        
+        return {
+          nodeId: node.id,
+          node,
+          result: result.result,
+          duration,
+          success: true,
+          usingPlatformCredentials: result.usingPlatformCredentials || false
+        };
+      } catch (stepError) {
+        const duration = Date.now() - stepStart;
+        
+        return {
+          nodeId: node.id,
+          node,
+          error: stepError,
+          duration,
+          success: false
+        };
       }
-      
-      currentNodeId = nextNodeId;
-      
-    } catch (stepError) {
-      stepLogs.push({
-        node_id: currentNodeId,
-        type: node.type,
-        config: node.config,
-        status: "failed",
-        duration_ms: 0,
-        error: stepError.message,
-        timestamp: new Date().toISOString()
-      });
-      
-      throw stepError;
+    });
+    
+    // Wait for all parallel executions to complete
+    const results = await Promise.all(nodePromises);
+    
+    // Process results
+    for (const { nodeId, node, result, error, duration, success, usingPlatformCredentials } of results) {
+      if (success) {
+        // Store output
+        nodeOutputs[nodeId] = result;
+        completedNodes.add(nodeId);
+        
+        stepLogs.push({
+          node_id: nodeId,
+          type: node.type,
+          config: node.config,
+          status: "success",
+          duration_ms: duration,
+          output: result,
+          timestamp: new Date().toISOString(),
+          usingPlatformCredentials: usingPlatformCredentials || false
+        });
+        
+        console.log(`✓ Node ${nodeId} completed successfully`);
+      } else {
+        stepLogs.push({
+          node_id: nodeId,
+          type: node.type,
+          config: node.config,
+          status: "failed",
+          duration_ms: duration,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.error(`✗ Node ${nodeId} failed:`, error.message);
+        throw error; // Fail fast on any error
+      }
     }
   }
   
@@ -218,6 +252,12 @@ async function executeWorkflow(workflow, initialContext, runId, stepLogs) {
     throw new Error('Workflow exceeded maximum iterations (possible infinite loop)');
   }
   
+  if (completedNodes.size < nodes.length) {
+    const remaining = nodes.filter(n => !completedNodes.has(n.id));
+    throw new Error(`Workflow incomplete: ${remaining.length} nodes not executed: ${remaining.map(n => n.id).join(', ')}`);
+  }
+  
+  console.log(`Workflow completed: ${completedNodes.size} nodes executed in ${iterations} iterations`);
   return nodeOutputs;
 }
 
