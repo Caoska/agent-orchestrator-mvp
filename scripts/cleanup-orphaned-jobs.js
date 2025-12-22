@@ -17,20 +17,26 @@ async function cleanupOrphanedJobs() {
   const repeatableJobs = await runQueue.getRepeatableJobs();
   console.log(`Found ${repeatableJobs.length} scheduled jobs in Redis`);
   
-  // Get all valid schedule IDs from database
-  const validSchedules = await data.listSchedules();
-  const validScheduleIds = new Set(validSchedules.map(s => `schedule_${s.schedule_id}`));
+  // Get all valid agent IDs from database
+  const validAgents = await data.listAgents();
+  const validAgentIds = new Set(validAgents.map(a => a.agent_id));
   
   let removedCount = 0;
   
   for (const job of repeatableJobs) {
-    if (job.id && job.id.startsWith('schedule_') && !validScheduleIds.has(job.id)) {
-      console.log(`Removing orphaned job: ${job.id}`);
-      try {
-        await runQueue.removeRepeatableByKey(job.key);
-        removedCount++;
-      } catch (error) {
-        console.error(`Failed to remove job ${job.id}:`, error.message);
+    if (job.id && job.id.startsWith('schedule_')) {
+      // Extract agent_id from job data or check if agent exists
+      const jobData = job.data || {};
+      const agentId = jobData.agent_id;
+      
+      if (!agentId || !validAgentIds.has(agentId)) {
+        console.log(`Removing orphaned job: ${job.id} (agent: ${agentId || 'unknown'})`);
+        try {
+          await runQueue.removeRepeatableByKey(job.key);
+          removedCount++;
+        } catch (error) {
+          console.error(`Failed to remove job ${job.id}:`, error.message);
+        }
       }
     }
   }
