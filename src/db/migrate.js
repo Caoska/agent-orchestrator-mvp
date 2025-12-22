@@ -114,7 +114,21 @@ async function migrate() {
         ALTER TABLE agents
         ADD COLUMN IF NOT EXISTS retry_policy JSONB DEFAULT '{}',
         ADD COLUMN IF NOT EXISTS timeout_seconds INTEGER DEFAULT 300,
-        ADD COLUMN IF NOT EXISTS webhook_secret VARCHAR(255);
+        ADD COLUMN IF NOT EXISTS webhook_secret VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS nodes JSONB,
+        ADD COLUMN IF NOT EXISTS connections JSONB;
+      `);
+      
+      // Make steps nullable and add constraint for workflow formats
+      await client.query(`
+        ALTER TABLE agents ALTER COLUMN steps DROP NOT NULL;
+      `);
+      
+      await client.query(`
+        ALTER TABLE agents DROP CONSTRAINT IF EXISTS agents_workflow_check;
+        ALTER TABLE agents ADD CONSTRAINT agents_workflow_check CHECK (
+          (steps IS NOT NULL) OR (nodes IS NOT NULL AND connections IS NOT NULL)
+        );
       `);
       
       // Runs table
