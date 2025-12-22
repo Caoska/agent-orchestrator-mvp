@@ -826,6 +826,29 @@ async function runComprehensiveTests() {
     }
   }
   
+  // AGGRESSIVE: Clear all repeatable jobs from Redis directly
+  try {
+    const { Queue } = await import('bullmq');
+    const IORedis = (await import('ioredis')).default;
+    const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', { maxRetriesPerRequest: null });
+    const queue = new Queue('runs', { connection });
+    
+    const repeatableJobs = await queue.getRepeatableJobs();
+    console.log(`Found ${repeatableJobs.length} repeatable jobs in Redis`);
+    
+    for (const job of repeatableJobs) {
+      if (job.id && job.id.startsWith('schedule_')) {
+        await queue.removeRepeatableByKey(job.key);
+        console.log(`Cleared repeatable job: ${job.id}`);
+      }
+    }
+    
+    await connection.quit();
+    console.log('✅ Redis repeatable jobs cleared');
+  } catch (e) {
+    console.log(`Failed to clear Redis repeatable jobs:`, e.message);
+  }
+  
   // ALWAYS attempt workspace cleanup - even if apiKey/workspaceId are undefined
   if (workspaceId) {
     try {
