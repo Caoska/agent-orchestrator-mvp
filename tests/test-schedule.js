@@ -27,7 +27,7 @@ async function test() {
         {
           type: "http",
           name: "fetch_time",
-          config: { url: "https://worldtimeapi.org/api/timezone/America/Chicago" },
+          config: { url: "https://httpbin.org/json" },
           output_key: "time"
         }
       ]

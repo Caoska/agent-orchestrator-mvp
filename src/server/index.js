@@ -1204,6 +1204,41 @@ app.get("/v1/admin/queue-status", async (req, res) => {
   }
 });
 
+// Clear failed jobs endpoint
+app.post("/v1/admin/clear-failed-jobs", async (req, res) => {
+  try {
+    const { Queue } = await import('bullmq');
+    const IORedis = (await import('ioredis')).default;
+    const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379');
+    
+    const runsQueue = new Queue('runs', { connection });
+    const fastQueue = new Queue('fast-jobs', { connection });
+    const slowQueue = new Queue('slow-jobs', { connection });
+    
+    // Clear failed jobs from all queues
+    await Promise.all([
+      runsQueue.clean(0, 1000, 'failed'),
+      fastQueue.clean(0, 1000, 'failed'),
+      slowQueue.clean(0, 1000, 'failed')
+    ]);
+    
+    await connection.quit();
+    
+    res.json({
+      success: true,
+      message: 'All failed jobs cleared',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    req.logger?.error('Clear failed jobs failed', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 app.get("/metrics", async (req, res) => {
   res.set('Content-Type', register.contentType);
   res.end(await register.metrics());
