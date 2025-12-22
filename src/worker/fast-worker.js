@@ -80,9 +80,15 @@ const fastWorker = new Worker(
   FAST_QUEUE_NAME,
   async job => {
     const { step, context, runId, nodeId } = job.data;
-    const jobLogger = logger.child({ runId, nodeId, stepType: step.type });
     
-    jobLogger.info('Fast worker processing step', { stepType: step.type });
+    // Create display name: "Tool Type (Custom Name)" or just "Tool Type"
+    const toolType = step.type || step.tool || 'Unknown';
+    const customName = step.config?.name;
+    const displayName = customName ? `${toolType} (${customName})` : toolType;
+    
+    const jobLogger = logger.child({ runId, nodeId, stepType: step.type, displayName });
+    
+    jobLogger.info('Fast worker processing step', { stepType: step.type, displayName });
     
     const stepStart = Date.now();
     
@@ -90,7 +96,7 @@ const fastWorker = new Worker(
       const result = await executeStep(step, context);
       const duration = Date.now() - stepStart;
       
-      jobLogger.info('Fast step completed', { duration, stepType: step.type });
+      jobLogger.info('Fast step completed', { duration, stepType: step.type, displayName });
       
       return {
         success: true,
@@ -101,7 +107,7 @@ const fastWorker = new Worker(
       
     } catch (error) {
       const duration = Date.now() - stepStart;
-      jobLogger.error('Fast step failed', { error: error.message, duration, stepType: step.type });
+      jobLogger.error('Fast step failed', { error: error.message, duration, stepType: step.type, displayName });
       
       return {
         success: false,
