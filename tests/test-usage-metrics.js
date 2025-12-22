@@ -14,6 +14,7 @@ async function testUsageMetrics() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        name: 'Test User',
         email: `test-metrics-${Date.now()}@example.com`,
         password: 'test123456'
       })
