@@ -1148,6 +1148,14 @@ function gracefulShutdown(signal) {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-server = app.listen(PORT, () => {
+server = app.listen(PORT, async () => {
   logger.info('Agent Orchestrator API started', { port: PORT });
+  
+  // Initialize monthly usage reset schedule
+  try {
+    const { initializeMonthlyReset } = await import('../../lib/scheduler.js');
+    await initializeMonthlyReset();
+  } catch (error) {
+    logger.error('Failed to initialize monthly reset schedule', { error: error.message });
+  }
 });

@@ -275,6 +275,14 @@ async function executeWorkflow(workflow, initialContext, stepLogs) {
 const worker = new Worker(
   QUEUE_NAME,
   async job => {
+    // Handle monthly reset jobs
+    if (job.name === 'monthly_reset') {
+      const { resetMonthlyUsage } = await import('../../lib/monthly-reset.js');
+      console.log('Processing monthly usage reset job');
+      await resetMonthlyUsage();
+      return { success: true, type: 'monthly_reset' };
+    }
+
     const { run_id, agent_id, project_id, input, scheduled } = job.data;
     const jobLogger = logger.child({ runId: run_id, agentId: agent_id });
     
