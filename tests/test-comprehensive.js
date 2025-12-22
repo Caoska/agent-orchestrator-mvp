@@ -251,13 +251,13 @@ async function runComprehensiveTests() {
       createdAgents.push(agentId);
       
       const startTime = Date.now();
-      const runRes = await fetch(`${API_URL}/v1/agents/${agentId}/run`, {
+      const runRes = await fetch(`${API_URL}/v1/runs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
-        body: JSON.stringify({ input: {} })
+        body: JSON.stringify({ agent_id: agentId, input: {} })
       });
       const run = await runRes.json();
       
@@ -349,13 +349,13 @@ async function runComprehensiveTests() {
       createdAgents.push(agentId);
       
       const startTime = Date.now();
-      const runRes = await fetch(`${API_URL}/v1/agents/${agentId}/run`, {
+      const runRes = await fetch(`${API_URL}/v1/runs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
-        body: JSON.stringify({ input: {} })
+        body: JSON.stringify({ agent_id: agentId, input: {} })
       });
       const run = await runRes.json();
       
@@ -448,13 +448,13 @@ async function runComprehensiveTests() {
       const agentId = agent.agent_id;
       createdAgents.push(agentId);
       
-      const runRes = await fetch(`${API_URL}/v1/agents/${agentId}/run`, {
+      const runRes = await fetch(`${API_URL}/v1/runs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
-        body: JSON.stringify({ input: {} })
+        body: JSON.stringify({ agent_id: agentId, input: {} })
       });
       const run = await runRes.json();
       
