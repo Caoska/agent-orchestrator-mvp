@@ -81,6 +81,9 @@ const fastWorker = new Worker(
   async job => {
     const { step, context, runId, nodeId } = job.data;
     
+    // Debug: log the step structure to see what's available
+    console.log('Step structure:', JSON.stringify(step, null, 2));
+    
     // Create display name: "Tool Type (Custom Name)" or just "Tool Type"
     const toolType = step.type || step.tool || 'Unknown';
     const customName = step.config?.name;
