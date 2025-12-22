@@ -12,7 +12,8 @@ console.log('Worker env check:', {
   hasPlatformSendGrid: !!process.env.PLATFORM_SENDGRID_API_KEY,
   hasPlatformTwilio: !!process.env.PLATFORM_TWILIO_ACCOUNT_SID,
   hasRedis: !!process.env.REDIS_URL,
-  hasDb: !!process.env.DATABASE_URL
+  hasDb: !!process.env.DATABASE_URL,
+  timestamp: new Date().toISOString()
 });
 console.log('All PLATFORM_ vars:', Object.keys(process.env).filter(k => k.startsWith('PLATFORM_')));
 await initDb();
