@@ -1144,6 +1144,27 @@ app.get("/health", async (req, res) => {
   }
 });
 
+// Emergency cleanup endpoint
+app.post("/v1/admin/cleanup-redis", async (req, res) => {
+  try {
+    const { clearAllRepeatableJobs } = await import('../../lib/scheduler.js');
+    await clearAllRepeatableJobs();
+    
+    res.json({
+      success: true,
+      message: 'All repeatable jobs cleared from Redis',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    req.logger?.error('Redis cleanup failed', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 app.get("/metrics", async (req, res) => {
   res.set('Content-Type', register.contentType);
   res.end(await register.metrics());
