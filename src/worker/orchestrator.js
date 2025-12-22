@@ -152,6 +152,12 @@ async function executeWorkflow(workflow, initialContext, runId, stepLogs) {
   
   console.log(`Orchestrating ${nodes.length} nodes with ${connections.length} connections`);
   
+  // Handle empty workflow
+  if (nodes.length === 0) {
+    console.log('Empty workflow, nothing to execute');
+    return {};
+  }
+  
   while (completedNodes.size < nodes.length && iterations < MAX_ITERATIONS) {
     iterations++;
     
@@ -192,7 +198,7 @@ async function executeWorkflow(workflow, initialContext, runId, stepLogs) {
           nodeId: node.id,
           node,
           result: result.result,
-          duration,
+          duration: result.duration, // Use worker's duration, not orchestrator's
           success: true,
           usingPlatformCredentials: result.usingPlatformCredentials || false
         };
