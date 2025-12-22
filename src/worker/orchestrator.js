@@ -173,6 +173,7 @@ async function executeWorkflow(workflow, initialContext, runId, stepLogs) {
       stepLogs.push({
         node_id: currentNodeId,
         type: node.type,
+        config: node.config,
         status: "success",
         duration_ms: result.duration,
         output: result.result,
@@ -202,6 +203,7 @@ async function executeWorkflow(workflow, initialContext, runId, stepLogs) {
       stepLogs.push({
         node_id: currentNodeId,
         type: node.type,
+        config: node.config,
         status: "failed",
         duration_ms: 0,
         error: stepError.message,
