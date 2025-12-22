@@ -760,7 +760,7 @@ app.get("/v1/runs/:id", requireApiKey, requireWorkspace, async (req, res) => {
 
 // Schedules
 app.post("/v1/schedules", requireApiKey, requireWorkspace, async (req, res) => {
-  const { agent_id, project_id, input = {}, cron, interval_seconds } = req.body;
+  const { agent_id, input = {}, cron, interval_seconds } = req.body;
   
   if (!cron && !interval_seconds) {
     return res.status(400).json({ error: "Either cron or interval_seconds required" });
@@ -778,7 +778,7 @@ app.post("/v1/schedules", requireApiKey, requireWorkspace, async (req, res) => {
   const schedule = {
     schedule_id,
     agent_id,
-    project_id,
+    project_id: agent.project_id, // Use agent's project_id, not from request body
     input,
     cron: cron || null,
     interval_seconds: interval_seconds || null,
@@ -790,7 +790,7 @@ app.post("/v1/schedules", requireApiKey, requireWorkspace, async (req, res) => {
   if (db) {
     await db.query(
       'INSERT INTO schedules (schedule_id, agent_id, project_id, input, cron, interval_seconds, enabled) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [schedule_id, agent_id, project_id, JSON.stringify(input), cron, interval_seconds, true]
+      [schedule_id, agent_id, agent.project_id, JSON.stringify(input), cron, interval_seconds, true]
     );
   }
   

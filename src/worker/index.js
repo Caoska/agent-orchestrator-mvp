@@ -270,7 +270,14 @@ const worker = new Worker(
     
     // Get workspace for API keys from database
     const project = await data.getProject(run.project_id);
-    const workspace = project ? await data.getWorkspace(project.workspace_id) : null;
+    if (!project) {
+      throw new Error(`Project ${run.project_id} not found`);
+    }
+    
+    const workspace = await data.getWorkspace(project.workspace_id);
+    if (!workspace) {
+      throw new Error(`Workspace ${project.workspace_id} not found`);
+    }
     
     const context = { input: run.input, _workspace: workspace };
     const stepLogs = [];
