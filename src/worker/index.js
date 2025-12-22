@@ -314,7 +314,9 @@ const worker = new Worker(
       }
       
       // Track metrics
-      trackAgentRun("completed", project.workspace_id, executionSeconds);
+      if (project) {
+        trackAgentRun("completed", project.workspace_id, executionSeconds);
+      }
       
       // Save to both Redis and DB
       await connection.set(`run:${actualRunId}`, JSON.stringify(run));
@@ -335,7 +337,9 @@ const worker = new Worker(
       const projectData = await connection.get(`project:${run.project_id}`);
       if (projectData) {
         const project = JSON.parse(projectData);
-        trackAgentRun("failed", project.workspace_id, executionSeconds);
+        if (project?.workspace_id) {
+          trackAgentRun("failed", project.workspace_id, executionSeconds);
+        }
       }
       
       await connection.set(`run:${actualRunId}`, JSON.stringify(run));
