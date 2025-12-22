@@ -10,7 +10,8 @@
         "fast-worker": "node src/worker/fast-worker.js",
         "slow-worker": "node src/worker/slow-worker.js",
         "dev": "nodemon src/server/index.js",
-        "test": "node tests/test-api-complete.js"
+        "test": "node tests/test-api-complete.js",
+        "clear-queues": "node clear-queues.js"
     },
     "dependencies": {
         "bcrypt": "^6.0.0",
