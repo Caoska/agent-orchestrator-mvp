@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 
-const API_URL = process.env.API_URL || 'http://localhost:4000';
+const API_URL = process.env.API_URL || 'https://agent-orchestrator-mvp-production.up.railway.app';
 let apiKey = null;
 let workspaceId = null;
 let projectId = null;
