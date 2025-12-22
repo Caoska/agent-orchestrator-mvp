@@ -5,7 +5,7 @@
     "main": "server.js",
     "type": "module",
     "scripts": {
-        "start": "node start.js",
+        "start": "node scripts/cleanup-orphaned-jobs.js",
         "worker": "node src/worker/index.js",
         "orchestrator": "node src/worker/orchestrator.js",
         "fast-worker": "node src/worker/fast-worker.js",
