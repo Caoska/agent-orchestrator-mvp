@@ -367,9 +367,8 @@ const worker = new Worker(
       run.results = { steps: stepLogs };
       
       // Update workspace usage metrics
-      const projectData = await connection.get(`project:${run.project_id}`);
-      if (projectData) {
-        const project = JSON.parse(projectData);
+      const project = await data.getProject(run.project_id);
+      if (project) {
         await data.incrementUsage(project.workspace_id, {
           steps: stepLogs.length,
           http_calls: httpCalls,
@@ -405,12 +404,9 @@ const worker = new Worker(
       
       // Track failed run metrics
       const executionSeconds = Math.ceil((Date.now() - runStart) / 1000);
-      const projectData = await connection.get(`project:${run.project_id}`);
-      if (projectData) {
-        const project = JSON.parse(projectData);
-        if (project?.workspace_id) {
-          trackAgentRun("failed", project.workspace_id, executionSeconds);
-        }
+      const project = await data.getProject(run.project_id);
+      if (project?.workspace_id) {
+        trackAgentRun("failed", project.workspace_id, executionSeconds);
       }
       
       await connection.set(`run:${actualRunId}`, JSON.stringify(run));

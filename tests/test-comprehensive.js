@@ -478,6 +478,45 @@ async function runComprehensiveTests() {
     console.log(`💥 Outer catch - something went very wrong: ${outerError.message}`);
   }
   
+  // Check usage metrics before cleanup
+  if (apiKey) {
+    try {
+      console.log('\n📊 Checking Usage Metrics...');
+      const wsRes = await fetch(`${API_URL}/v1/workspace`, {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      const wsData = await wsRes.json();
+      
+      console.log('Final usage metrics:');
+      console.log(`  runs_this_month: ${wsData.runs_this_month}`);
+      console.log(`  steps_this_month: ${wsData.steps_this_month}`);
+      console.log(`  http_calls_this_month: ${wsData.http_calls_this_month}`);
+      console.log(`  execution_seconds_this_month: ${wsData.execution_seconds_this_month}`);
+      
+      // Verify metrics incremented
+      if (wsData.runs_this_month > 0) {
+        console.log('✅ runs_this_month is incrementing');
+      } else {
+        console.log('❌ runs_this_month is NOT incrementing');
+      }
+      
+      if (wsData.steps_this_month > 0) {
+        console.log('✅ steps_this_month is incrementing');
+      } else {
+        console.log('❌ steps_this_month is NOT incrementing');
+      }
+      
+      if (wsData.http_calls_this_month > 0) {
+        console.log('✅ http_calls_this_month is incrementing');
+      } else {
+        console.log('❌ http_calls_this_month is NOT incrementing');
+      }
+      
+    } catch (metricsError) {
+      console.log('❌ Failed to check usage metrics:', metricsError.message);
+    }
+  }
+  
   // ALWAYS attempt cleanup regardless of ANY failures
   console.log('\n🧹 Cleaning up...');
   
