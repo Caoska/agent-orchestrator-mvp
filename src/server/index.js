@@ -687,7 +687,7 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
 });
 
 app.post("/v1/runs", requireApiKey, requireWorkspace, rateLimit(60000, 100), async (req, res) => {
-  const { agent_id, project_id, input = {}, run_async = true, webhook } = req.body;
+  const { agent_id, project_id, input = {}, run_async = true, webhook, trigger_type = 'manual' } = req.body;
   const agent = await data.getAgent(agent_id);
   if (!agent) return res.status(404).json({ error: "agent not found" });
   
@@ -716,7 +716,7 @@ app.post("/v1/runs", requireApiKey, requireWorkspace, rateLimit(60000, 100), asy
   const run_id = "run_" + uuidv4();
   const run = {
     run_id, agent_id, project_id, input, webhook: webhook || null,
-    status: "queued", created_at: new Date().toISOString()
+    trigger_type, status: "queued", created_at: new Date().toISOString()
   };
   
   await data.createRun(run);
