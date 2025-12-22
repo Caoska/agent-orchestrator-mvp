@@ -681,27 +681,60 @@ app.post("/v1/tools", requireApiKey, (req, res) => {
 });
 
 app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
-  const { project_id, name, steps, trigger, retry_policy = {}, timeout_seconds = 300 } = req.body;
+  const { project_id, name, steps, nodes, connections, trigger, retry_policy = {}, timeout_seconds = 300 } = req.body;
   const project = await data.getProject(project_id);
   
   if (!project || project.workspace_id !== req.workspace.workspace_id) {
     return res.status(403).json({ error: "project access denied" });
   }
   
-  if (!Array.isArray(steps)) return res.status(400).json({ error: "steps required" });
+  // Support both legacy steps format and new nodes/connections format
+  let workflowSteps = steps;
+  let workflowNodes = nodes;
+  let workflowConnections = connections;
+  
+  if (nodes && connections) {
+    // New graph format
+    if (!Array.isArray(nodes)) return res.status(400).json({ error: "nodes must be an array" });
+    if (!Array.isArray(connections)) return res.status(400).json({ error: "connections must be an array" });
+    workflowNodes = nodes;
+    workflowConnections = connections;
+  } else if (steps) {
+    // Legacy steps format
+    if (!Array.isArray(steps)) return res.status(400).json({ error: "steps required" });
+    workflowSteps = steps;
+  } else {
+    return res.status(400).json({ error: "Either steps or nodes/connections required" });
+  }
   
   // Input size limits
-  if (steps.length > 50) return res.status(400).json({ error: "Maximum 50 steps per workflow" });
+  const workflowSize = workflowSteps ? workflowSteps.length : workflowNodes.length;
+  if (workflowSize > 50) return res.status(400).json({ error: "Maximum 50 steps/nodes per workflow" });
   if (name && name.length > 200) return res.status(400).json({ error: "Name too long (max 200 chars)" });
-  if (JSON.stringify(steps).length > 100000) return res.status(400).json({ error: "Workflow definition too large (max 100KB)" });
+  
+  const workflowData = workflowSteps ? { steps: workflowSteps } : { nodes: workflowNodes, connections: workflowConnections };
+  if (JSON.stringify(workflowData).length > 100000) return res.status(400).json({ error: "Workflow definition too large (max 100KB)" });
   
   const agent_id = "agent_" + uuidv4();
   const webhook_secret = generateWebhookSecret();
-  const agent = { agent_id, project_id, name, steps, trigger, retry_policy, timeout_seconds, webhook_secret, created_at: new Date().toISOString() };
+  
+  // Create agent with appropriate format
+  const agent = { 
+    agent_id, 
+    project_id, 
+    name, 
+    trigger, 
+    retry_policy, 
+    timeout_seconds, 
+    webhook_secret, 
+    created_at: new Date().toISOString(),
+    ...workflowData
+  };
+  
   await data.createAgent(agent);
   
-  // Check for disconnected tools and generate warnings
-  const warnings = validateWorkflowConnections(steps);
+  // Check for disconnected tools and generate warnings (only for steps format for now)
+  const warnings = workflowSteps ? validateWorkflowConnections(workflowSteps) : [];
   
   // Auto-create schedules for cron/interval triggers
   if (trigger) {
@@ -781,7 +814,7 @@ app.get("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
 });
 
 app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
-  const { name, steps, trigger, retry_policy, timeout_seconds } = req.body;
+  const { name, steps, nodes, connections, trigger, retry_policy, timeout_seconds } = req.body;
   const agent = await data.getAgent(req.params.id);
   if (!agent) return res.status(404).json({ error: "not found" });
   
@@ -790,16 +823,33 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
     return res.status(403).json({ error: "access denied" });
   }
   
-  // Input size limits
-  if (steps && Array.isArray(steps)) {
-    if (steps.length > 50) return res.status(400).json({ error: "Maximum 50 steps per workflow" });
-    if (JSON.stringify(steps).length > 100000) return res.status(400).json({ error: "Workflow definition too large (max 100KB)" });
+  // Support both legacy steps format and new nodes/connections format
+  let updateData = { name, trigger, retry_policy, timeout_seconds };
+  
+  if (nodes && connections) {
+    // New graph format
+    if (!Array.isArray(nodes)) return res.status(400).json({ error: "nodes must be an array" });
+    if (!Array.isArray(connections)) return res.status(400).json({ error: "connections must be an array" });
+    
+    if (nodes.length > 50) return res.status(400).json({ error: "Maximum 50 nodes per workflow" });
+    if (JSON.stringify({ nodes, connections }).length > 100000) return res.status(400).json({ error: "Workflow definition too large (max 100KB)" });
+    
+    updateData.nodes = nodes;
+    updateData.connections = connections;
+  } else if (steps) {
+    // Legacy steps format
+    if (Array.isArray(steps)) {
+      if (steps.length > 50) return res.status(400).json({ error: "Maximum 50 steps per workflow" });
+      if (JSON.stringify(steps).length > 100000) return res.status(400).json({ error: "Workflow definition too large (max 100KB)" });
+    }
+    updateData.steps = steps;
   }
+  
   if (name && name.length > 200) return res.status(400).json({ error: "Name too long (max 200 chars)" });
   
-  await data.updateAgent(req.params.id, { name, steps, trigger, retry_policy, timeout_seconds });
+  await data.updateAgent(req.params.id, updateData);
   
-  // Check for disconnected tools and generate warnings
+  // Check for disconnected tools and generate warnings (only for steps format for now)
   const warnings = steps ? validateWorkflowConnections(steps) : [];
   
   // Update schedules when trigger changes
