@@ -17,8 +17,12 @@ async function cleanupOrphanedJobs() {
   const repeatableJobs = await runQueue.getRepeatableJobs();
   console.log(`Found ${repeatableJobs.length} scheduled jobs in Redis`);
   
+  // Debug: show first few jobs
+  console.log('Sample jobs:', repeatableJobs.slice(0, 3).map(j => ({ id: j.id, data: j.data })));
+  
   // Get all valid agent IDs from database
   const validAgents = await data.listAgents();
+  console.log(`Found ${validAgents.length} valid agents in database`);
   const validAgentIds = new Set(validAgents.map(a => a.agent_id));
   
   let removedCount = 0;
