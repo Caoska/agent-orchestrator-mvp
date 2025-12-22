@@ -269,9 +269,10 @@ const orchestrator = new Worker(
     run.status = "running";
     run.started_at = new Date().toISOString();
     
-    // Get workspace for API keys from database
-    const project = await data.getProject(run.project_id);
-    console.log('DEBUG: getProject result:', { project_id: run.project_id, project: project ? 'FOUND' : 'NULL' });
+    // Get workspace for API keys from Redis/database
+    const projectData = await connection.get(`project:${run.project_id}`);
+    const project = projectData ? JSON.parse(projectData) : await data.getProject(run.project_id);
+    console.log('DEBUG: getProject result:', { project_id: run.project_id, project: project ? 'FOUND' : 'NULL', source: projectData ? 'REDIS' : 'DB' });
     const workspace = project ? await data.getWorkspace(project.workspace_id) : null;
     
     const context = { input: run.input, _workspace: workspace };
