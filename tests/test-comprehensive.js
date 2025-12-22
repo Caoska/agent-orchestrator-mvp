@@ -35,9 +35,13 @@ async function runComprehensiveTests() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify({ name: 'Comprehensive Test Project' })
+      body: JSON.stringify({ 
+        name: 'Comprehensive Test Project',
+        workspace_id: workspaceId 
+      })
     });
     const project = await projectRes.json();
+    console.log('Created project:', JSON.stringify(project, null, 2));
     projectId = project.project_id;
     console.log('✅ Test workspace created\n');
     // Tool Tests
@@ -94,6 +98,7 @@ async function runComprehensiveTests() {
           })
         });
         const agent = await agentRes.json();
+        console.log(`    Created agent:`, JSON.stringify(agent, null, 2));
         
         // Run agent
         const runRes = await fetch(`${API_URL}/v1/runs`, {
@@ -109,6 +114,7 @@ async function runComprehensiveTests() {
           })
         });
         const run = await runRes.json();
+        console.log(`    Created run:`, JSON.stringify(run, null, 2));
         
         // Wait for completion
         let finalRun;
@@ -118,14 +124,17 @@ async function runComprehensiveTests() {
             headers: { 'Authorization': `Bearer ${apiKey}` }
           });
           finalRun = await statusRes.json();
-          if (finalRun.status === 'completed' || finalRun.status === 'failed') break;
+          console.log(`    Status check ${i+1}: ${finalRun?.status || 'undefined'}`);
+          if (finalRun?.status === 'completed' || finalRun?.status === 'failed') break;
         }
         
+        console.log(`    Final run object:`, JSON.stringify(finalRun, null, 2));
+        
         if (test.shouldSucceed) {
-          assert(finalRun.status === 'completed', `${test.name} should succeed but got ${finalRun.status}`);
+          assert(finalRun?.status === 'completed', `${test.name} should succeed but got ${finalRun?.status}`);
           console.log(`    ✅ ${test.name}: SUCCESS`);
         } else {
-          assert(finalRun.status === 'failed', `${test.name} should fail but got ${finalRun.status}`);
+          assert(finalRun?.status === 'failed', `${test.name} should fail but got ${finalRun?.status}`);
           console.log(`    ✅ ${test.name}: FAILED AS EXPECTED`);
         }
         
