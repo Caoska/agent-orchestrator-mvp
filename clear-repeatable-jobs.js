@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+const REDIS_URL = process.env.REDIS_URL || "redis://redis-12345.c1.us-east-1-2.ec2.redislabs.com:12345";
 const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 
 async function clearAllRepeatableJobs() {
