@@ -162,6 +162,9 @@ async function executeWorkflow(workflow, initialContext, stepLogs) {
       // Store output
       nodeOutputs[currentNodeId] = result;
       
+      // Debug: log node structure to understand config availability
+      console.log('Worker node structure:', JSON.stringify(node, null, 2));
+      
       stepLogs.push({
         node_id: currentNodeId,
         type: node.type,
