@@ -28,60 +28,12 @@ const SLOW_TOOLS = ['delay', 'database-poll'];
 
 // Convert array format to graph format for backward compatibility
 function normalizeWorkflow(agent) {
+  // All workflows now use nodes/connections format
   if (agent.nodes && agent.connections) {
     return { nodes: agent.nodes, connections: agent.connections };
   }
   
-  console.log('Raw agent steps:', agent.steps?.map((s, i) => ({ index: i, type: s.tool || s.type })));
-  
-  const nodes = agent.steps.map((step, i) => ({
-    id: `node_${i}`,
-    type: step.tool || step.type,
-    config: step.config || step,
-    connections: step.connections || []
-  }));
-  
-  console.log('Generated nodes:', nodes.map(n => ({ id: n.id, type: n.type })));
-  
-  const connections = [];
-  console.log('FIXED VERSION: Starting connection creation...');
-  nodes.forEach((node, i) => {
-    console.log(`Processing node ${i}: ${node.id} (${node.type})`);
-    if (node.connections && node.connections.length > 0) {
-      console.log(`Node ${node.id} has explicit connections:`, node.connections);
-      node.connections.forEach(conn => {
-        connections.push({
-          from: node.id,
-          fromPort: conn.port || 'output',
-          to: conn.to,
-          toPort: 'input'
-        });
-      });
-    } else if (i < nodes.length - 1) {
-      // Use the actual next node's ID instead of generating it
-      const nextNode = nodes[i + 1];
-      const nextNodeId = nextNode.id;
-      console.log(`FIXED: Creating connection ${node.id} -> ${nextNodeId} (was broken before)`);
-      connections.push({
-        from: node.id,
-        fromPort: 'output',
-        to: nextNodeId,
-        toPort: 'input'
-      });
-    } else {
-      console.log(`Node ${node.id} is the last node, no connection needed`);
-    }
-  });
-  
-  console.log('Connections after creation:', connections.map(c => `${c.from} -> ${c.to}`));
-  
-  console.log('Orchestrator normalized workflow:', { 
-    nodeCount: nodes.length, 
-    connectionCount: connections.length,
-    connections: connections.map(c => `${c.from} -> ${c.to}`)
-  });
-  
-  return { nodes, connections };
+  throw new Error('Workflow must have nodes and connections format');
 }
 
 // Route step to appropriate queue
