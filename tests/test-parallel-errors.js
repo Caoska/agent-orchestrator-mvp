@@ -16,6 +16,7 @@ async function runParallelErrorTests() {
   try {
     // Setup
     console.log('📋 Setting up test workspace...');
+    console.log('API URL:', API_URL);
     const workspaceRes = await fetch(`${API_URL}/v1/workspaces`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -25,9 +26,26 @@ async function runParallelErrorTests() {
       })
     });
     
-    const workspace = await workspaceRes.json();
-    workspaceId = workspace.workspace_id;
-    apiKey = workspace.api_key;
+    console.log('Workspace response status:', workspaceRes.status);
+    console.log('Workspace response headers:', Object.fromEntries(workspaceRes.headers.entries()));
+    
+    if (!workspaceRes.ok) {
+      const errorText = await workspaceRes.text();
+      console.error('Workspace creation failed:', workspaceRes.status, errorText);
+      throw new Error(`Failed to create workspace: ${workspaceRes.status} ${errorText}`);
+    }
+    
+    try {
+      const workspace = await workspaceRes.json();
+      workspaceId = workspace.workspace_id;
+      apiKey = workspace.api_key;
+      console.log('Workspace created:', workspaceId);
+    } catch (parseError) {
+      const responseText = await workspaceRes.text();
+      console.error('Failed to parse workspace response as JSON:', parseError.message);
+      console.error('Response text:', responseText);
+      throw parseError;
+    }
     
     const projectRes = await fetch(`${API_URL}/v1/projects`, {
       method: 'POST',
@@ -40,6 +58,13 @@ async function runParallelErrorTests() {
         workspace_id: workspaceId 
       })
     });
+    
+    if (!projectRes.ok) {
+      const errorText = await projectRes.text();
+      console.error('Project creation failed:', projectRes.status, errorText);
+      throw new Error(`Failed to create project: ${projectRes.status} ${errorText}`);
+    }
+    
     const project = await projectRes.json();
     projectId = project.project_id;
 
