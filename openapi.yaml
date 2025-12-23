@@ -293,7 +293,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, steps]
+              required: [name]
               properties:
                 project_id:
                   type: string
@@ -301,8 +301,19 @@ paths:
                   type: string
                 steps:
                   type: array
+                  description: "Legacy format: linear array of steps"
                   items:
                     $ref: '#/components/schemas/Step'
+                nodes:
+                  type: array
+                  description: "Graph format: nodes for parallel processing"
+                  items:
+                    $ref: '#/components/schemas/Node'
+                connections:
+                  type: array
+                  description: "Graph format: connections between nodes"
+                  items:
+                    $ref: '#/components/schemas/Connection'
       responses:
         '200':
           description: Agent created
@@ -854,6 +865,47 @@ components:
           method: GET
           headers:
             Authorization: "Bearer {{secrets.api_key}}"
+
+    Node:
+      type: object
+      required: [id, type]
+      properties:
+        id:
+          type: string
+          description: Unique node identifier
+        type:
+          type: string
+          enum: [http, webhook, sendgrid, twilio, database, llm, transform, conditional, delay]
+        config:
+          type: object
+          description: Configuration varies by tool type
+      example:
+        id: "node_1"
+        type: "http"
+        config:
+          name: "Fetch User Data"
+          url: "https://api.example.com/users"
+          method: "GET"
+
+    Connection:
+      type: object
+      required: [from, to]
+      properties:
+        from:
+          type: string
+          description: Source node ID
+        to:
+          type: string
+          description: Target node ID
+        fromPort:
+          type: string
+          default: "output"
+        toPort:
+          type: string
+          default: "input"
+      example:
+        from: "node_0"
+        to: "node_1"
 
     Run:
       type: object
