@@ -648,28 +648,31 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
     return res.status(403).json({ error: "project access denied" });
   }
   
-  // Support nodes/connections format only
-  let workflowNodes = nodes;
-  let workflowConnections = connections;
-  
-  // Debug logging
-  console.log('Agent creation request:', {
-    hasNodes: !!nodes,
-    hasConnections: !!connections,
-    nodesType: typeof nodes,
-    connectionsType: typeof connections,
-    nodesLength: Array.isArray(nodes) ? nodes.length : 'not array',
-    connectionsLength: Array.isArray(connections) ? connections.length : 'not array'
-  });
+  // Extract nodes/connections from request (handle both formats)
+  let workflowNodes, workflowConnections;
   
   if (nodes !== undefined && connections !== undefined) {
-    if (!Array.isArray(nodes)) return res.status(400).json({ error: "nodes must be an array" });
-    if (!Array.isArray(connections)) return res.status(400).json({ error: "connections must be an array" });
+    // Direct format: { nodes: [...], connections: [...] }
     workflowNodes = nodes;
     workflowConnections = connections;
+  } else if (steps && steps.nodes && steps.connections) {
+    // Wrapped format: { steps: { nodes: [...], connections: [...] } }
+    workflowNodes = steps.nodes;
+    workflowConnections = steps.connections;
   } else {
     return res.status(400).json({ error: "nodes and connections required" });
   }
+  
+  // Debug logging
+  console.log('Agent creation request:', {
+    hasNodes: !!workflowNodes,
+    hasConnections: !!workflowConnections,
+    nodesLength: Array.isArray(workflowNodes) ? workflowNodes.length : 'not array',
+    connectionsLength: Array.isArray(workflowConnections) ? workflowConnections.length : 'not array'
+  });
+  
+  if (!Array.isArray(workflowNodes)) return res.status(400).json({ error: "nodes must be an array" });
+  if (!Array.isArray(workflowConnections)) return res.status(400).json({ error: "connections must be an array" });
   
   // Input size limits
   const workflowSize = workflowNodes.length;
@@ -802,15 +805,28 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
   // Support nodes/connections format only
   let updateData = { name, trigger, retry_policy, timeout_seconds };
   
+  // Extract nodes/connections from request (handle both formats)
+  let workflowNodes, workflowConnections;
+  
   if (nodes !== undefined && connections !== undefined) {
-    if (!Array.isArray(nodes)) return res.status(400).json({ error: "nodes must be an array" });
-    if (!Array.isArray(connections)) return res.status(400).json({ error: "connections must be an array" });
+    // Direct format: { nodes: [...], connections: [...] }
+    workflowNodes = nodes;
+    workflowConnections = connections;
+  } else if (steps && steps.nodes && steps.connections) {
+    // Wrapped format: { steps: { nodes: [...], connections: [...] } }
+    workflowNodes = steps.nodes;
+    workflowConnections = steps.connections;
+  }
+  
+  if (workflowNodes !== undefined && workflowConnections !== undefined) {
+    if (!Array.isArray(workflowNodes)) return res.status(400).json({ error: "nodes must be an array" });
+    if (!Array.isArray(workflowConnections)) return res.status(400).json({ error: "connections must be an array" });
     
-    if (nodes.length > 50) return res.status(400).json({ error: "Maximum 50 nodes per workflow" });
-    if (JSON.stringify({ nodes, connections }).length > 100000) return res.status(400).json({ error: "Workflow definition too large (max 100KB)" });
+    if (workflowNodes.length > 50) return res.status(400).json({ error: "Maximum 50 nodes per workflow" });
+    if (JSON.stringify({ nodes: workflowNodes, connections: workflowConnections }).length > 100000) return res.status(400).json({ error: "Workflow definition too large (max 100KB)" });
     
-    updateData.nodes = nodes;
-    updateData.connections = connections;
+    updateData.nodes = workflowNodes;
+    updateData.connections = workflowConnections;
   }
   
   if (name && name.length > 200) return res.status(400).json({ error: "Name too long (max 200 chars)" });
@@ -818,7 +834,8 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
   await data.updateAgent(req.params.id, updateData);
   
   // Check for disconnected tools and generate warnings
-  const warnings = validateWorkflowConnections({ nodes, connections });
+  const warnings = workflowNodes && workflowConnections ? 
+    validateWorkflowConnections({ nodes: workflowNodes, connections: workflowConnections }) : [];
   
   // Update schedules when trigger changes
   const db = getDb();
