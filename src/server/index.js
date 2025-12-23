@@ -27,37 +27,28 @@ import { checkHealth } from "../../lib/health.js";
 function validateWorkflowConnections(workflow) {
   const warnings = [];
   
-  // Handle both legacy steps format and new nodes/connections format
-  if (workflow.nodes && workflow.connections) {
-    // New format - validate nodes/connections
-    if (!Array.isArray(workflow.nodes) || workflow.nodes.length === 0) {
-      return warnings;
-    }
-    
-    // Check for disconnected nodes
-    const connectedNodes = new Set();
-    
-    workflow.connections.forEach(conn => {
-      connectedNodes.add(conn.from);
-      connectedNodes.add(conn.to);
+  if (!Array.isArray(workflow.nodes) || workflow.nodes.length === 0) {
+    return warnings;
+  }
+  
+  // Check for disconnected nodes
+  const connectedNodes = new Set();
+  
+  workflow.connections.forEach(conn => {
+    connectedNodes.add(conn.from);
+    connectedNodes.add(conn.to);
+  });
+  
+  const disconnectedNodes = workflow.nodes.filter(node => 
+    !connectedNodes.has(node.id) && workflow.nodes.length > 1
+  );
+  
+  if (disconnectedNodes.length > 0) {
+    warnings.push({
+      type: 'disconnected_tools',
+      message: `${disconnectedNodes.length} tool(s) are not connected to the workflow`,
+      tools: disconnectedNodes.map(n => n.config?.name || n.type)
     });
-    
-    const disconnectedNodes = workflow.nodes.filter(node => 
-      !connectedNodes.has(node.id) && workflow.nodes.length > 1
-    );
-    
-    if (disconnectedNodes.length > 0) {
-      warnings.push({
-        type: 'disconnected_tools',
-        message: `${disconnectedNodes.length} tool(s) are not connected to the workflow`,
-        tools: disconnectedNodes.map(n => n.config?.name || n.type)
-      });
-    }
-  } else if (workflow.steps) {
-    // Legacy format - assume all connected
-    if (!Array.isArray(workflow.steps) || workflow.steps.length === 0) {
-      return warnings;
-    }
   }
   
   return warnings;
@@ -657,8 +648,7 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
     return res.status(403).json({ error: "project access denied" });
   }
   
-  // Support both legacy steps format and new nodes/connections format
-  let workflowSteps = steps;
+  // Support nodes/connections format only
   let workflowNodes = nodes;
   let workflowConnections = connections;
   
@@ -666,35 +656,27 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
   console.log('Agent creation request:', {
     hasNodes: !!nodes,
     hasConnections: !!connections,
-    hasSteps: !!steps,
     nodesType: typeof nodes,
     connectionsType: typeof connections,
-    stepsType: typeof steps,
     nodesLength: Array.isArray(nodes) ? nodes.length : 'not array',
-    connectionsLength: Array.isArray(connections) ? connections.length : 'not array',
-    stepsLength: Array.isArray(steps) ? steps.length : 'not array'
+    connectionsLength: Array.isArray(connections) ? connections.length : 'not array'
   });
   
   if (nodes !== undefined && connections !== undefined) {
-    // New graph format
     if (!Array.isArray(nodes)) return res.status(400).json({ error: "nodes must be an array" });
     if (!Array.isArray(connections)) return res.status(400).json({ error: "connections must be an array" });
     workflowNodes = nodes;
     workflowConnections = connections;
-  } else if (steps !== undefined) {
-    // Legacy steps format
-    if (!Array.isArray(steps)) return res.status(400).json({ error: "steps must be an array" });
-    workflowSteps = steps;
   } else {
-    return res.status(400).json({ error: "Either steps or nodes/connections required" });
+    return res.status(400).json({ error: "nodes and connections required" });
   }
   
   // Input size limits
-  const workflowSize = workflowSteps ? workflowSteps.length : workflowNodes.length;
-  if (workflowSize > 50) return res.status(400).json({ error: "Maximum 50 steps/nodes per workflow" });
+  const workflowSize = workflowNodes.length;
+  if (workflowSize > 50) return res.status(400).json({ error: "Maximum 50 nodes per workflow" });
   if (name && name.length > 200) return res.status(400).json({ error: "Name too long (max 200 chars)" });
   
-  const workflowData = workflowSteps ? { steps: workflowSteps } : { nodes: workflowNodes, connections: workflowConnections };
+  const workflowData = { nodes: workflowNodes, connections: workflowConnections };
   if (JSON.stringify(workflowData).length > 100000) return res.status(400).json({ error: "Workflow definition too large (max 100KB)" });
   
   const agent_id = "agent_" + uuidv4();
@@ -712,20 +694,14 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
     created_at: new Date().toISOString()
   };
   
-  // Store in appropriate format
-  if (workflowSteps) {
-    agent.steps = workflowSteps;
-  } else {
-    agent.nodes = workflowNodes;
-    agent.connections = workflowConnections;
-  }
+  // Store in nodes/connections format
+  agent.nodes = workflowNodes;
+  agent.connections = workflowConnections;
   
   await data.createAgent(agent);
   
-  // Check for disconnected tools and generate warnings (only for steps format for now)
-  const warnings = workflowSteps ? 
-    validateWorkflowConnections({ steps: workflowSteps }) : 
-    validateWorkflowConnections({ nodes: workflowNodes, connections: workflowConnections });
+  // Check for disconnected tools and generate warnings
+  const warnings = validateWorkflowConnections({ nodes: workflowNodes, connections: workflowConnections });
   
   // Auto-create schedules for cron/interval triggers
   if (trigger) {
@@ -823,11 +799,10 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
     return res.status(403).json({ error: "access denied" });
   }
   
-  // Support both legacy steps format and new nodes/connections format
+  // Support nodes/connections format only
   let updateData = { name, trigger, retry_policy, timeout_seconds };
   
-  if (nodes && connections) {
-    // New graph format
+  if (nodes !== undefined && connections !== undefined) {
     if (!Array.isArray(nodes)) return res.status(400).json({ error: "nodes must be an array" });
     if (!Array.isArray(connections)) return res.status(400).json({ error: "connections must be an array" });
     
@@ -836,13 +811,6 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
     
     updateData.nodes = nodes;
     updateData.connections = connections;
-  } else if (steps) {
-    // Legacy steps format
-    if (Array.isArray(steps)) {
-      if (steps.length > 50) return res.status(400).json({ error: "Maximum 50 steps per workflow" });
-      if (JSON.stringify(steps).length > 100000) return res.status(400).json({ error: "Workflow definition too large (max 100KB)" });
-    }
-    updateData.steps = steps;
   }
   
   if (name && name.length > 200) return res.status(400).json({ error: "Name too long (max 200 chars)" });
@@ -850,9 +818,7 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
   await data.updateAgent(req.params.id, updateData);
   
   // Check for disconnected tools and generate warnings
-  const warnings = steps ? 
-    validateWorkflowConnections({ steps }) : 
-    validateWorkflowConnections({ nodes, connections });
+  const warnings = validateWorkflowConnections({ nodes, connections });
   
   // Update schedules when trigger changes
   const db = getDb();
