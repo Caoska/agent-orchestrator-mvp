@@ -306,11 +306,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Debug CORS
-app.use((req, res, next) => {
-  console.log(`CORS Debug - Origin: ${req.headers.origin}, Frontend URL: ${process.env.FRONTEND_URL}`);
-  next();
-});
 app.use(correlationMiddleware);
 app.use(metricsMiddleware);
 app.use(bodyParser.json());
@@ -812,8 +807,17 @@ app.delete("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) =
   if (db) {
     const schedules = await db.query('SELECT schedule_id FROM schedules WHERE agent_id = $1', [req.params.id]);
     for (const schedule of schedules.rows) {
-      await removeSchedule(schedule.schedule_id);
-      await db.query('DELETE FROM schedules WHERE schedule_id = $1', [schedule.schedule_id]);
+      try {
+        const removed = await removeSchedule(schedule.schedule_id);
+        if (removed) {
+          await db.query('DELETE FROM schedules WHERE schedule_id = $1', [schedule.schedule_id]);
+        } else {
+          console.warn(`Failed to remove Redis job for schedule ${schedule.schedule_id}, keeping database record`);
+        }
+      } catch (error) {
+        console.error(`Error removing schedule ${schedule.schedule_id}:`, error.message);
+        // Don't delete from database if Redis cleanup failed
+      }
     }
   }
   
@@ -878,8 +882,17 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
     // Remove existing schedules for this agent
     const existingSchedules = await db.query('SELECT schedule_id FROM schedules WHERE agent_id = $1', [req.params.id]);
     for (const schedule of existingSchedules.rows) {
-      await removeSchedule(schedule.schedule_id);
-      await db.query('DELETE FROM schedules WHERE schedule_id = $1', [schedule.schedule_id]);
+      try {
+        const removed = await removeSchedule(schedule.schedule_id);
+        if (removed) {
+          await db.query('DELETE FROM schedules WHERE schedule_id = $1', [schedule.schedule_id]);
+        } else {
+          console.warn(`Failed to remove Redis job for schedule ${schedule.schedule_id}, keeping database record`);
+        }
+      } catch (error) {
+        console.error(`Error removing schedule ${schedule.schedule_id}:`, error.message);
+        // Don't delete from database if Redis cleanup failed
+      }
     }
     
     // Create new schedules if trigger has cron
@@ -1166,12 +1179,20 @@ app.get("/health", async (req, res) => {
 // Emergency cleanup endpoint
 app.post("/v1/admin/cleanup-redis", async (req, res) => {
   try {
-    const { clearAllRepeatableJobs } = await import('../../lib/scheduler.js');
-    await clearAllRepeatableJobs();
+    const { clearAllRepeatableJobs, cleanupOrphanedJobs } = await import('../../lib/scheduler.js');
+    
+    // First try to clean up just orphaned jobs
+    const orphanedCount = await cleanupOrphanedJobs();
+    
+    // If requested, clear all repeatable jobs
+    if (req.body.clearAll) {
+      await clearAllRepeatableJobs();
+    }
     
     res.json({
       success: true,
-      message: 'All repeatable jobs cleared from Redis',
+      message: req.body.clearAll ? 'All repeatable jobs cleared from Redis' : `${orphanedCount} orphaned jobs cleaned up`,
+      orphanedJobsRemoved: orphanedCount,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
