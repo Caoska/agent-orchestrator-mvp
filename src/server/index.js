@@ -642,6 +642,9 @@ app.post("/v1/tools", requireApiKey, (req, res) => {
 
 app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
   const { project_id, name, steps, nodes, connections, trigger, retry_policy = {}, timeout_seconds = 300 } = req.body;
+  
+  console.log('Creating agent with nodes:', JSON.stringify(nodes, null, 2));
+  
   const project = await data.getProject(project_id);
   
   if (!project || project.workspace_id !== req.workspace.workspace_id) {
@@ -794,6 +797,9 @@ app.get("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
 
 app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
   const { name, steps, nodes, connections, trigger, retry_policy, timeout_seconds } = req.body;
+  
+  console.log('Updating agent with nodes:', JSON.stringify(nodes, null, 2));
+  
   const agent = await data.getAgent(req.params.id);
   if (!agent) return res.status(404).json({ error: "not found" });
   
