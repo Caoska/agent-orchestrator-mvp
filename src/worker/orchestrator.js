@@ -263,7 +263,20 @@ const orchestrator = new Worker(
     
     // Get agent and project from database
     const agent = await data.getAgent(run.agent_id);
-    if (!agent) throw new Error(`Agent ${run.agent_id} not found`);
+    if (!agent) {
+      // Agent not found - this is an orphaned job, clean it up
+      console.log(`Agent ${run.agent_id} not found, cleaning up orphaned repeatable job`);
+      
+      try {
+        // Find and remove the repeatable job that created this run
+        const { cleanupOrphanedJobsForAgent } = await import('../../lib/scheduler.js');
+        await cleanupOrphanedJobsForAgent(run.agent_id);
+      } catch (cleanupError) {
+        console.error('Failed to cleanup orphaned job:', cleanupError.message);
+      }
+      
+      throw new Error(`Agent ${run.agent_id} not found`);
+    }
     
     const project = await data.getProject(run.project_id);
     if (!project) throw new Error(`Project ${run.project_id} not found`);
