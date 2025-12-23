@@ -11,6 +11,8 @@
         "slow-worker": "node src/worker/slow-worker.js",
         "dev": "nodemon src/server/index.js",
         "test": "node tests/test-api-complete.js",
+        "test-parallel": "node tests/test-parallel.js",
+        "test-parallel-errors": "node tests/test-parallel-errors.js",
         "clear-queues": "node clear-queues.js"
     },
     "dependencies": {

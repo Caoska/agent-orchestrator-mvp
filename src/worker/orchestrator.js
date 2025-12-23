@@ -245,11 +245,12 @@ async function executeWorkflow(workflow, initialContext, runId, stepLogs) {
           status: "failed",
           duration_ms: duration,
           error: error.message,
+          step_name: node.config?.name || `${node.type} step`,
           timestamp: new Date().toISOString()
         });
         
-        console.error(`✗ Node ${nodeId} failed:`, error.message);
-        throw error; // Fail fast on any error
+        console.error(`✗ Node ${nodeId} (${node.config?.name || node.type}) failed:`, error.message);
+        throw new Error(`Parallel execution failed at step "${node.config?.name || node.type}" (${nodeId}): ${error.message}`);
       }
     }
   }
