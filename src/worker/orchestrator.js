@@ -26,14 +26,14 @@ const slowQueueEvents = new QueueEvents(SLOW_QUEUE_NAME, { connection });
 const FAST_TOOLS = ['http', 'webhook', 'transform', 'conditional', 'sendgrid', 'twilio', 'llm'];
 const SLOW_TOOLS = ['delay', 'database-poll'];
 
-// Convert array format to graph format for backward compatibility
+// Convert array format to graph format
 function normalizeWorkflow(agent) {
-  // All workflows now use nodes/connections format
-  if (agent.nodes && agent.connections) {
-    return { nodes: agent.nodes, connections: agent.connections };
+  // Expect nodes/connections format
+  if (!agent.nodes || !agent.connections) {
+    throw new Error('Workflow must have nodes and connections format');
   }
   
-  throw new Error('Workflow must have nodes and connections format');
+  return { nodes: agent.nodes, connections: agent.connections };
 }
 
 // Route step to appropriate queue

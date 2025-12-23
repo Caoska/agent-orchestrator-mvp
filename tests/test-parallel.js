@@ -289,13 +289,16 @@ async function runParallelTests() {
     const independentAgentData = await independentAgentRes.json();
     createdAgents.push(independentAgentData.agent_id);
     
-    const independentRunRes = await fetch(`${API_URL}/v1/agents/${independentAgentData.agent_id}/run`, {
+    const independentRunRes = await fetch(`${API_URL}/v1/runs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify({ input: {} })
+      body: JSON.stringify({ 
+        agent_id: independentAgentData.agent_id,
+        input: {} 
+      })
     });
     const independentRun = await independentRunRes.json();
     
