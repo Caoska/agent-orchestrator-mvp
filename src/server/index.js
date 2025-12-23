@@ -1065,11 +1065,6 @@ app.delete("/v1/workspace", requireApiKey, requireWorkspace, async (req, res) =>
 app.put("/v1/workspace/settings", requireApiKey, requireWorkspace, async (req, res) => {
   const { api_keys } = req.body;
   
-  console.log('PUT /v1/workspace/settings received:', { 
-    workspace_id: req.workspace.workspace_id, 
-    api_keys: api_keys 
-  });
-  
   if (!api_keys || typeof api_keys !== 'object') {
     return res.status(400).json({ error: "api_keys must be an object" });
   }
@@ -1096,9 +1091,7 @@ app.put("/v1/workspace/settings", requireApiKey, requireWorkspace, async (req, r
     }
   }
   
-  console.log('About to update workspace with:', { api_keys: JSON.stringify(api_keys) });
   await data.updateWorkspace(req.workspace.workspace_id, { api_keys: JSON.stringify(api_keys) });
-  console.log('Workspace update completed');
   res.json({ updated: true });
 });
 
