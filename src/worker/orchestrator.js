@@ -263,6 +263,8 @@ const orchestrator = new Worker(
     
     // Get agent and project from database
     const agent = await data.getAgent(run.agent_id);
+    console.log('Retrieved agent nodes:', JSON.stringify(agent?.nodes, null, 2));
+    
     if (!agent) {
       // Agent not found - this is an orphaned job, clean it up
       console.log(`Agent ${run.agent_id} not found, cleaning up orphaned repeatable job`);
