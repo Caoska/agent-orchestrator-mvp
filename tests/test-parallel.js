@@ -120,7 +120,7 @@ async function runParallelTests() {
       runStatus = await statusRes.json();
       attempts++;
       console.log(`Attempt ${attempts}: Status = ${runStatus.status}`);
-    } while (runStatus.status === 'running' && attempts < 60); // Increased timeout
+    } while ((runStatus.status === 'running' || runStatus.status === 'queued') && attempts < 60);
     
     const sequentialTime = Date.now() - startTime;
     
@@ -215,7 +215,7 @@ async function runParallelTests() {
       });
       forkJoinStatus = await statusRes.json();
       attempts++;
-    } while (forkJoinStatus.status === 'running' && attempts < 30);
+    } while ((forkJoinStatus.status === 'running' || forkJoinStatus.status === 'queued') && attempts < 30);
     
     const forkJoinTime = Date.now() - forkJoinStartTime;
     
@@ -306,7 +306,7 @@ async function runParallelTests() {
       });
       independentStatus = await statusRes.json();
       attempts++;
-    } while (independentStatus.status === 'running' && attempts < 30);
+    } while ((independentStatus.status === 'running' || independentStatus.status === 'queued') && attempts < 30);
     
     assert(independentStatus.status === 'completed', 'Independent parallel workflow should complete');
     assert(independentStatus.results?.steps?.length === 3, 'Should execute all 3 nodes');
