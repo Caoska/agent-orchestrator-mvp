@@ -63,9 +63,12 @@ async function runParallelTests() {
     const sequentialAgent = {
       name: 'Sequential Test',
       project_id: projectId,
-      steps: [
-        { type: 'http', config: { url: 'https://httpbin.org/delay/1', name: 'API Call A' } },
-        { type: 'http', config: { url: 'https://httpbin.org/delay/1', name: 'API Call B' } }
+      nodes: [
+        { id: 'node_0', type: 'http', config: { url: 'https://httpbin.org/delay/1', name: 'API Call A' } },
+        { id: 'node_1', type: 'http', config: { url: 'https://httpbin.org/delay/1', name: 'API Call B' } }
+      ],
+      connections: [
+        { from: 'node_0', to: 'node_1' }
       ]
     };
 

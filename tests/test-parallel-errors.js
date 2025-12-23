@@ -73,39 +73,47 @@ async function runParallelErrorTests() {
     const oneBranchFailsAgent = {
       name: 'One Branch Fails Test',
       project_id: projectId,
-      steps: [
+      nodes: [
         {
-          tool: 'transform',
+          id: 'node_0',
+          type: 'transform',
           config: {
             name: 'Start',
             code: 'return { message: "Starting" }'
           }
         },
         {
-          tool: 'http',
+          id: 'node_1',
+          type: 'http',
           config: {
             name: 'Success API',
             method: 'GET',
             url: 'https://httpbin.org/status/200'
-          },
-          connections: [{ to: 'node_3', port: 'output' }]
+          }
         },
         {
-          tool: 'http',
+          id: 'node_2',
+          type: 'http',
           config: {
             name: 'Failing API',
             method: 'GET', 
             url: 'https://httpbin.org/status/500'
-          },
-          connections: [{ to: 'node_3', port: 'output' }]
+          }
         },
         {
-          tool: 'transform',
+          id: 'node_3',
+          type: 'transform',
           config: {
             name: 'Should Not Execute',
             code: 'return { message: "This should not run" }'
           }
         }
+      ],
+      connections: [
+        { from: 'node_0', to: 'node_1' },
+        { from: 'node_0', to: 'node_2' },
+        { from: 'node_1', to: 'node_3' },
+        { from: 'node_2', to: 'node_3' }
       ]
     };
 
@@ -176,16 +184,18 @@ async function runParallelErrorTests() {
     const allBranchesFailAgent = {
       name: 'All Branches Fail Test',
       project_id: projectId,
-      steps: [
+      nodes: [
         {
-          tool: 'transform',
+          id: 'node_0',
+          type: 'transform',
           config: {
             name: 'Start',
             code: 'return { message: "Starting" }'
           }
         },
         {
-          tool: 'http',
+          id: 'node_1',
+          type: 'http',
           config: {
             name: 'Fail 1',
             method: 'GET',
@@ -193,7 +203,8 @@ async function runParallelErrorTests() {
           }
         },
         {
-          tool: 'http',
+          id: 'node_2',
+          type: 'http',
           config: {
             name: 'Fail 2',
             method: 'GET',
@@ -201,12 +212,18 @@ async function runParallelErrorTests() {
           }
         },
         {
-          tool: 'transform',
+          id: 'node_3',
+          type: 'transform',
           config: {
             name: 'Invalid Code',
             code: 'throw new Error("Intentional error")'
           }
         }
+      ],
+      connections: [
+        { from: 'node_0', to: 'node_1' },
+        { from: 'node_0', to: 'node_2' },
+        { from: 'node_0', to: 'node_3' }
       ]
     };
 
@@ -261,9 +278,10 @@ async function runParallelErrorTests() {
     const errorClarityAgent = {
       name: 'Error Clarity Test',
       project_id: projectId,
-      steps: [
+      nodes: [
         {
-          tool: 'http',
+          id: 'node_0',
+          type: 'http',
           config: {
             name: 'Trigger',
             method: 'GET',
@@ -271,29 +289,36 @@ async function runParallelErrorTests() {
           }
         },
         {
-          tool: 'transform',
+          id: 'node_1',
+          type: 'transform',
           config: {
             name: 'Parse JSON',
             code: 'return JSON.parse("invalid json")'
-          },
-          connections: [{ to: 'node_3', port: 'output' }]
+          }
         },
         {
-          tool: 'http',
+          id: 'node_2',
+          type: 'http',
           config: {
             name: 'Bad URL',
             method: 'GET',
             url: 'https://nonexistent-domain-12345.com/api'
-          },
-          connections: [{ to: 'node_3', port: 'output' }]
+          }
         },
         {
-          tool: 'transform',
+          id: 'node_3',
+          type: 'transform',
           config: {
             name: 'Final Step',
             code: 'return { done: true }'
           }
         }
+      ],
+      connections: [
+        { from: 'node_0', to: 'node_1' },
+        { from: 'node_0', to: 'node_2' },
+        { from: 'node_1', to: 'node_3' },
+        { from: 'node_2', to: 'node_3' }
       ]
     };
 
