@@ -693,6 +693,19 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
   let workflowNodes = nodes;
   let workflowConnections = connections;
   
+  // Debug logging
+  console.log('Agent creation request:', {
+    hasNodes: !!nodes,
+    hasConnections: !!connections,
+    hasSteps: !!steps,
+    nodesType: typeof nodes,
+    connectionsType: typeof connections,
+    stepsType: typeof steps,
+    nodesLength: Array.isArray(nodes) ? nodes.length : 'not array',
+    connectionsLength: Array.isArray(connections) ? connections.length : 'not array',
+    stepsLength: Array.isArray(steps) ? steps.length : 'not array'
+  });
+  
   if (nodes && connections) {
     // New graph format
     if (!Array.isArray(nodes)) return res.status(400).json({ error: "nodes must be an array" });
