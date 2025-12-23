@@ -67,6 +67,39 @@ async function migrate() {
       
       
       // Rename old column if it exists and new one doesn't
+      // Add API keys JSON column and migrate existing keys
+      await client.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'workspaces' AND column_name = 'api_keys'
+          ) THEN
+            ALTER TABLE workspaces ADD COLUMN api_keys JSONB DEFAULT '{}';
+          END IF;
+        END $$;
+      `);
+      
+      // Migrate existing API keys to JSON format
+      await client.query(`
+        UPDATE workspaces 
+        SET api_keys = COALESCE(api_keys, '{}') || 
+          CASE 
+            WHEN llm_api_key IS NOT NULL THEN jsonb_build_object('llm', llm_api_key)
+            ELSE '{}'::jsonb
+          END ||
+          CASE 
+            WHEN sendgrid_api_key IS NOT NULL THEN jsonb_build_object('sendgrid', sendgrid_api_key)
+            ELSE '{}'::jsonb
+          END ||
+          CASE 
+            WHEN twilio_account_sid IS NOT NULL AND twilio_auth_token IS NOT NULL THEN 
+              jsonb_build_object('twilio', jsonb_build_object('account_sid', twilio_account_sid, 'auth_token', twilio_auth_token))
+            ELSE '{}'::jsonb
+          END
+        WHERE api_keys = '{}' OR api_keys IS NULL;
+      `);
+
       await client.query(`
         DO $$ 
         BEGIN

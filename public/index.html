@@ -1325,10 +1325,29 @@
       hideAll();
       document.getElementById('settings').classList.remove('hidden');
       document.getElementById('workspaceApiKey').value = currentWorkspace?.api_key || '';
-      document.getElementById('llmKey').value = currentWorkspace?.llm_api_key || '';
-      document.getElementById('sendgridKey').value = currentWorkspace?.sendgrid_api_key || '';
-      document.getElementById('twilioSid').value = currentWorkspace?.twilio_account_sid || '';
-      document.getElementById('twilioToken').value = currentWorkspace?.twilio_auth_token || '';
+      
+      // Use helper function to get API keys from either format
+      document.getElementById('llmKey').value = getApiKeyFromWorkspace(currentWorkspace, 'llm') || '';
+      document.getElementById('sendgridKey').value = getApiKeyFromWorkspace(currentWorkspace, 'sendgrid') || '';
+      document.getElementById('twilioSid').value = getApiKeyFromWorkspace(currentWorkspace, 'twilio', 'account_sid') || '';
+      document.getElementById('twilioToken').value = getApiKeyFromWorkspace(currentWorkspace, 'twilio', 'auth_token') || '';
+    }
+    
+    // Helper function to get API keys from workspace (new JSON format)
+    function getApiKeyFromWorkspace(workspace, keyType, subKey = null) {
+      if (!workspace || !workspace.api_keys) return null;
+      
+      const keys = workspace.api_keys;
+      
+      if (subKey && keys[keyType] && typeof keys[keyType] === 'object') {
+        return keys[keyType][subKey] || null;
+      }
+      
+      if (!subKey && keys[keyType]) {
+        return keys[keyType];
+      }
+      
+      return null;
     }
     
     function toggleApiKey() {
@@ -1349,6 +1368,23 @@
       const twilioSid = document.getElementById('twilioSid').value;
       const twilioToken = document.getElementById('twilioToken').value;
       
+      // Build the new API keys structure
+      const api_keys = {};
+      
+      if (llmKey) {
+        api_keys.llm = llmKey;
+      }
+      
+      if (sendgridKey) {
+        api_keys.sendgrid = sendgridKey;
+      }
+      
+      if (twilioSid || twilioToken) {
+        api_keys.twilio = {};
+        if (twilioSid) api_keys.twilio.account_sid = twilioSid;
+        if (twilioToken) api_keys.twilio.auth_token = twilioToken;
+      }
+      
       try {
         const res = await fetch(`${API_URL}/v1/workspace/settings`, {
           method: 'PATCH',
@@ -1356,21 +1392,18 @@
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
           },
-          body: JSON.stringify({ 
-            llm_api_key: llmKey, 
-            sendgrid_api_key: sendgridKey,
-            twilio_account_sid: twilioSid,
-            twilio_auth_token: twilioToken
-          })
+          body: JSON.stringify({ api_keys })
         });
         
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || 'Failed to save settings');
+        }
         
         showToast('Settings saved!', 'success');
-        currentWorkspace.llm_api_key = llmKey;
-        currentWorkspace.sendgrid_api_key = sendgridKey;
-        currentWorkspace.twilio_account_sid = twilioSid;
-        currentWorkspace.twilio_auth_token = twilioToken;
+        
+        // Update local workspace object
+        currentWorkspace.api_keys = api_keys;
       } catch (err) {
         showToast('Error: ' + err.message);
       }

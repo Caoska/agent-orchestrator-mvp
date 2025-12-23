@@ -37,6 +37,22 @@ Total: 4.5s              Total: 3s (33% faster)
 
 **Visual Indicators:** Orange dashed connections show parallel execution in the UI
 
+### 🔄 Automatic Join Coordination
+When multiple parallel branches converge to a single step, SiloWorker automatically waits for ALL branches to complete before proceeding - no configuration required.
+
+```
+Fork Pattern with Auto-Join:
+HTTP ══╤══ Transform A ══╗
+       ║                 ║
+       ╠══ Transform B ══╬══ [AUTO-JOIN] ══ Email
+       ║                 ║
+       ╚══ Database ═════╝
+
+✓ Email step waits for Transform A, Transform B, AND Database to ALL finish
+✓ Uses Promise.all() coordination under the hood
+✓ Zero configuration - just connect the nodes
+```
+
 ## 🛠️ 9 Built-in Tools
 
 ### 🌐 HTTP Tool

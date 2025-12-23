@@ -1062,16 +1062,36 @@ app.delete("/v1/workspace", requireApiKey, requireWorkspace, async (req, res) =>
   }
 });
 
-app.patch("/v1/workspace/settings", requireApiKey, requireWorkspace, async (req, res) => {
-  const { llm_api_key, sendgrid_api_key, twilio_account_sid, twilio_auth_token } = req.body;
+app.put("/v1/workspace/settings", requireApiKey, requireWorkspace, async (req, res) => {
+  const { api_keys } = req.body;
   
-  const updates = {};
-  if (llm_api_key !== undefined) updates.llm_api_key = llm_api_key;
-  if (sendgrid_api_key !== undefined) updates.sendgrid_api_key = sendgrid_api_key;
-  if (twilio_account_sid !== undefined) updates.twilio_account_sid = twilio_account_sid;
-  if (twilio_auth_token !== undefined) updates.twilio_auth_token = twilio_auth_token;
+  if (!api_keys || typeof api_keys !== 'object') {
+    return res.status(400).json({ error: "api_keys must be an object" });
+  }
   
-  await data.updateWorkspace(req.workspace.workspace_id, updates);
+  // Validate the structure - should be a map of service -> key/config
+  const validServices = ['llm', 'sendgrid', 'twilio'];
+  const invalidServices = Object.keys(api_keys).filter(service => !validServices.includes(service));
+  
+  if (invalidServices.length > 0) {
+    return res.status(400).json({ 
+      error: `Invalid services: ${invalidServices.join(', ')}. Valid services: ${validServices.join(', ')}` 
+    });
+  }
+  
+  // Validate twilio structure if present
+  if (api_keys.twilio && typeof api_keys.twilio === 'object') {
+    const validTwilioKeys = ['account_sid', 'auth_token'];
+    const invalidTwilioKeys = Object.keys(api_keys.twilio).filter(key => !validTwilioKeys.includes(key));
+    
+    if (invalidTwilioKeys.length > 0) {
+      return res.status(400).json({ 
+        error: `Invalid Twilio keys: ${invalidTwilioKeys.join(', ')}. Valid keys: ${validTwilioKeys.join(', ')}` 
+      });
+    }
+  }
+  
+  await data.updateWorkspace(req.workspace.workspace_id, { api_keys: JSON.stringify(api_keys) });
   res.json({ updated: true });
 });
 
