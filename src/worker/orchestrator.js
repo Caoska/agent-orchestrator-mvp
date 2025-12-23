@@ -223,6 +223,34 @@ async function executeWorkflow(workflow, initialContext, runId, stepLogs) {
 const orchestrator = new Worker(
   ORCHESTRATOR_QUEUE_NAME,
   async job => {
+    // Handle special job types
+    if (job.name === 'orphaned_cleanup') {
+      console.log('Running orphaned job cleanup...');
+      try {
+        const { cleanupAllOrphanedJobs } = await import('../../lib/scheduler.js');
+        const cleaned = await cleanupAllOrphanedJobs();
+        console.log(`Orphaned cleanup completed: ${cleaned} jobs cleaned`);
+        return { cleaned };
+      } catch (error) {
+        console.error('Orphaned cleanup failed:', error.message);
+        throw error;
+      }
+    }
+
+    if (job.data.type === 'monthly_usage_reset') {
+      console.log('Running monthly usage reset...');
+      try {
+        const { resetMonthlyUsage } = await import('../../lib/monthly-reset.js');
+        await resetMonthlyUsage();
+        console.log('Monthly usage reset completed');
+        return { reset: true };
+      } catch (error) {
+        console.error('Monthly usage reset failed:', error.message);
+        throw error;
+      }
+    }
+
+    // Handle regular workflow runs
     const { run_id, agent_id, project_id, input, scheduled } = job.data;
     const jobLogger = logger.child({ runId: run_id, agentId: agent_id });
     

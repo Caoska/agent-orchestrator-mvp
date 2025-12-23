@@ -1331,9 +1331,10 @@ server = app.listen(PORT, async () => {
   
   // Initialize monthly usage reset schedule
   try {
-    const { initializeMonthlyReset } = await import('../../lib/scheduler.js');
+    const { initializeMonthlyReset, initializeOrphanedJobCleanup } = await import('../../lib/scheduler.js');
     await initializeMonthlyReset();
+    await initializeOrphanedJobCleanup();
   } catch (error) {
-    logger.error('Failed to initialize monthly reset schedule', { error: error.message });
+    logger.error('Failed to initialize scheduled jobs', { error: error.message });
   }
 });
