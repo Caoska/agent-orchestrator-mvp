@@ -24,71 +24,45 @@ import { correlationMiddleware, errorHandler } from "../../lib/middleware.js";
 import { checkHealth } from "../../lib/health.js";
 
 // Validate workflow connections and return warnings
-function validateWorkflowConnections(steps) {
+function validateWorkflowConnections(workflow) {
   const warnings = [];
   
-  if (!Array.isArray(steps) || steps.length === 0) {
-    return warnings;
-  }
-  
-  // For array-style workflows, assume all connected (legacy format)
-  // For graph-style workflows, check for disconnected nodes
-  const hasExplicitConnections = steps.some(step => step.connections && step.connections.length > 0);
-  
-  if (hasExplicitConnections) {
-    // Graph-style workflow - check for disconnected tools
-    const nodes = steps.map((step, i) => ({
-      id: `node_${i}`,
-      type: step.tool || step.type,
-      config: step.config || step,
-      connections: step.connections || []
-    }));
-    
-    const connections = [];
-    nodes.forEach(node => {
-      if (node.connections && node.connections.length > 0) {
-        node.connections.forEach(conn => {
-          connections.push({
-            from: node.id,
-            to: conn.to
-          });
-        });
-      }
-    });
-    
-    // Find disconnected nodes
-    const connected = new Set();
-    const visited = new Set();
-    
-    // Start from first node
-    if (nodes.length > 0) {
-      function dfs(nodeId) {
-        if (visited.has(nodeId)) return;
-        visited.add(nodeId);
-        
-        const node = nodes.find(n => n.id === nodeId);
-        if (node) {
-          connected.add(node);
-          connections
-            .filter(c => c.from === nodeId)
-            .forEach(c => dfs(c.to));
-        }
-      }
-      
-      dfs(nodes[0].id);
+  // Handle both legacy steps format and new nodes/connections format
+  if (workflow.nodes && workflow.connections) {
+    // New format - validate nodes/connections
+    if (!Array.isArray(workflow.nodes) || workflow.nodes.length === 0) {
+      return warnings;
     }
     
-    const disconnected = nodes.filter(n => !connected.has(n));
-    if (disconnected.length > 0) {
-      const toolNames = disconnected.map(n => 
-        `[${(n.type || 'unknown').toUpperCase()}]${n.config?.name ? ` - ${n.config.name}` : ''}`
-      );
-      warnings.push(`${disconnected.length} tool${disconnected.length > 1 ? 's are' : ' is'} disconnected and will not execute: ${toolNames.join(', ')}`);
+    // Check for disconnected nodes
+    const connectedNodes = new Set();
+    
+    workflow.connections.forEach(conn => {
+      connectedNodes.add(conn.from);
+      connectedNodes.add(conn.to);
+    });
+    
+    const disconnectedNodes = workflow.nodes.filter(node => 
+      !connectedNodes.has(node.id) && workflow.nodes.length > 1
+    );
+    
+    if (disconnectedNodes.length > 0) {
+      warnings.push({
+        type: 'disconnected_tools',
+        message: `${disconnectedNodes.length} tool(s) are not connected to the workflow`,
+        tools: disconnectedNodes.map(n => n.config?.name || n.type)
+      });
+    }
+  } else if (workflow.steps) {
+    // Legacy format - assume all connected
+    if (!Array.isArray(workflow.steps) || workflow.steps.length === 0) {
+      return warnings;
     }
   }
   
   return warnings;
 }
+
 import { logger } from "../../lib/logger.js";
 
 dotenv.config();
@@ -701,15 +675,15 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
     stepsLength: Array.isArray(steps) ? steps.length : 'not array'
   });
   
-  if (nodes && connections) {
+  if (nodes !== undefined && connections !== undefined) {
     // New graph format
     if (!Array.isArray(nodes)) return res.status(400).json({ error: "nodes must be an array" });
     if (!Array.isArray(connections)) return res.status(400).json({ error: "connections must be an array" });
     workflowNodes = nodes;
     workflowConnections = connections;
-  } else if (steps) {
+  } else if (steps !== undefined) {
     // Legacy steps format
-    if (!Array.isArray(steps)) return res.status(400).json({ error: "steps required" });
+    if (!Array.isArray(steps)) return res.status(400).json({ error: "steps must be an array" });
     workflowSteps = steps;
   } else {
     return res.status(400).json({ error: "Either steps or nodes/connections required" });
@@ -749,7 +723,9 @@ app.post("/v1/agents", requireApiKey, requireWorkspace, async (req, res) => {
   await data.createAgent(agent);
   
   // Check for disconnected tools and generate warnings (only for steps format for now)
-  const warnings = workflowSteps ? validateWorkflowConnections(workflowSteps) : [];
+  const warnings = workflowSteps ? 
+    validateWorkflowConnections({ steps: workflowSteps }) : 
+    validateWorkflowConnections({ nodes: workflowNodes, connections: workflowConnections });
   
   // Auto-create schedules for cron/interval triggers
   if (trigger) {
@@ -873,8 +849,10 @@ app.put("/v1/agents/:id", requireApiKey, requireWorkspace, async (req, res) => {
   
   await data.updateAgent(req.params.id, updateData);
   
-  // Check for disconnected tools and generate warnings (only for steps format for now)
-  const warnings = steps ? validateWorkflowConnections(steps) : [];
+  // Check for disconnected tools and generate warnings
+  const warnings = steps ? 
+    validateWorkflowConnections({ steps }) : 
+    validateWorkflowConnections({ nodes, connections });
   
   // Update schedules when trigger changes
   const db = getDb();
