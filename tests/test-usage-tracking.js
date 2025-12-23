@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import fetch from 'node-fetch';
 
-const API_URL = process.env.API_URL || 'https://agent-orchestrator-mvp-production.up.railway.app';
+const API_URL = process.env.API_URL;
 
 describe('Usage Tracking Integration Tests', function() {
   this.timeout(30000);

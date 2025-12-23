@@ -10,7 +10,7 @@ import { logger } from "../../lib/logger.js";
 dotenv.config();
 await initDb();
 
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+const REDIS_URL = process.env.REDIS_URL;
 const SLOW_QUEUE_NAME = "slow-jobs";
 const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 

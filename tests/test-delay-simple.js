@@ -1,5 +1,5 @@
 import fetch from "node-fetch";
-const API_URL = "http://localhost:4000";
+const API_URL = process.env.API_URL;
 
 async function test() {
   const ws = await fetch(`${API_URL}/v1/workspaces`, {

@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const REDIS_URL = process.env.REDIS_URL || "redis://red-ctlhbhij1k6c73a6nnag:6379";
+const REDIS_URL = process.env.REDIS_URL;
 const QUEUE_NAME = process.env.QUEUE_NAME || "runs";
 const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 const runQueue = new Queue(QUEUE_NAME, { connection });

@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 
-const API_URL = "http://localhost:4000";
+const API_URL = process.env.API_URL;
 
 async function test() {
   console.log("Testing webhook and delay tools...\n");

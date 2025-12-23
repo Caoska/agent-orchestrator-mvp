@@ -1,6 +1,9 @@
 import fetch from 'node-fetch';
+import dotenv from 'dotenv';
 
-const API_URL = process.env.API_URL || 'https://agent-orchestrator-mvp-production.up.railway.app';
+dotenv.config();
+
+const API_URL = process.env.API_URL;
 
 async function assert(condition, message) {
   if (!condition) {
@@ -830,7 +833,20 @@ async function runComprehensiveTests() {
   try {
     const { Queue } = await import('bullmq');
     const IORedis = (await import('ioredis')).default;
-    const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', { maxRetriesPerRequest: null });
+    
+    // Use live Redis URL from environment
+    const redisUrl = process.env.REDIS_URL;
+    if (!redisUrl) {
+      throw new Error('REDIS_URL environment variable not set');
+    }
+    
+    const connection = new IORedis(redisUrl, { 
+      maxRetriesPerRequest: 1,
+      retryDelayOnFailover: 100,
+      enableReadyCheck: false,
+      connectTimeout: 5000,
+      lazyConnect: true
+    });
     const queue = new Queue('runs', { connection });
     
     const repeatableJobs = await queue.getRepeatableJobs();

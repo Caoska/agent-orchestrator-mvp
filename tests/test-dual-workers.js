@@ -4,8 +4,20 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
-const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+const REDIS_URL = process.env.REDIS_URL;
+
+// Validate Redis URL
+if (!REDIS_URL) {
+  throw new Error('REDIS_URL environment variable not set');
+}
+
+const connection = new IORedis(REDIS_URL, { 
+  maxRetriesPerRequest: 1,
+  retryDelayOnFailover: 100,
+  enableReadyCheck: false,
+  connectTimeout: 5000,
+  lazyConnect: true
+});
 
 // Test dual worker architecture
 async function testDualWorkers() {

@@ -343,7 +343,7 @@ app.get('/robots.txt', (req, res) => {
   res.sendFile(join(__dirname, '../../public/robots.txt'));
 });
 
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+const REDIS_URL = process.env.REDIS_URL;
 const QUEUE_NAME = process.env.QUEUE_NAME || "runs";
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
@@ -1171,7 +1171,7 @@ app.get("/v1/admin/queue-status", async (req, res) => {
   try {
     const { Queue } = await import('bullmq');
     const IORedis = (await import('ioredis')).default;
-    const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379');
+    const connection = new IORedis(process.env.REDIS_URL);
     
     const runsQueue = new Queue('runs', { connection });
     const fastQueue = new Queue('fast-jobs', { connection });
@@ -1210,7 +1210,7 @@ app.post("/v1/admin/clear-failed-jobs", async (req, res) => {
   try {
     const { Queue } = await import('bullmq');
     const IORedis = (await import('ioredis')).default;
-    const connection = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379');
+    const connection = new IORedis(process.env.REDIS_URL);
     
     const runsQueue = new Queue('runs', { connection });
     const fastQueue = new Queue('fast-jobs', { connection });

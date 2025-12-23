@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 
-const API_URL = process.env.API_URL || 'http://localhost:3000';
+const API_URL = process.env.API_URL;
 
 async function testUsageLimits() {
   console.log('🧪 Testing Usage Limits API...');

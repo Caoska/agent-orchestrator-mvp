@@ -1,4 +1,4 @@
-const API_URL = process.env.API_URL || 'http://localhost:8080';
+const API_URL = process.env.API_URL;
 
 async function test() {
   console.log('🧪 Testing Agent Orchestrator UI Flow\n');
@@ -113,7 +113,7 @@ async function test() {
   console.log('   Enterprise: Unlimited - Contact sales\n');
   
   console.log('✨ All tests passed!\n');
-  console.log('🌐 Open http://localhost:8080 in your browser');
+  console.log(`🌐 Open ${API_URL} in your browser`);
   console.log(`🔑 Use this API key to login: ${api_key}`);
 }
 
