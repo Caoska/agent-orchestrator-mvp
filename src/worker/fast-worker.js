@@ -34,6 +34,10 @@ async function executeStep(step, context) {
     throw new Error(`Unknown step type: ${step.type || step.tool}`);
   }
   
+  if (step.type === 'twilio') {
+    console.log('Fast worker executing Twilio step with config:', JSON.stringify(step.config, null, 2));
+  }
+  
   // Check usage limits for email/SMS
   const workspace = context._workspace;
   if (workspace && (step.type === 'sendgrid' || step.type === 'twilio')) {
