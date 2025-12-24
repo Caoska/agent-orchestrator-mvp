@@ -34,28 +34,8 @@ try {
 
   console.log(`🎉 Cleanup complete! Removed ${cleaned} repeatable jobs`);
 
-  // Also clear any waiting/delayed jobs that might be orphaned
-  const waiting = await runQueue.getWaiting();
-  const delayed = await runQueue.getDelayed();
-  
-  console.log(`Found ${waiting.length} waiting jobs and ${delayed.length} delayed jobs`);
-  
-  // Only clean jobs older than 24 hours to be safe
-  const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
-  let oldJobsCleaned = 0;
-  
-  for (const job of [...waiting, ...delayed]) {
-    if (job.timestamp < oneDayAgo) {
-      try {
-        await job.remove();
-        oldJobsCleaned++;
-      } catch (error) {
-        console.error(`Failed to remove old job ${job.id}:`, error.message);
-      }
-    }
-  }
-  
-  console.log(`🎉 Removed ${oldJobsCleaned} jobs older than 24 hours`);
+  // Don't touch waiting/delayed jobs - they could be legitimate long-running workflows
+  console.log('ℹ️  Leaving waiting/delayed jobs untouched (they may be legitimate long-running workflows)');
   
 } catch (error) {
   console.error('Cleanup failed:', error.message);
