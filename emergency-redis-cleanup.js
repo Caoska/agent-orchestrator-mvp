@@ -40,12 +40,12 @@ try {
   
   console.log(`Found ${waiting.length} waiting jobs and ${delayed.length} delayed jobs`);
   
-  // Clean old jobs (older than 1 hour)
-  const oneHourAgo = Date.now() - (60 * 60 * 1000);
+  // Only clean jobs older than 24 hours to be safe
+  const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
   let oldJobsCleaned = 0;
   
   for (const job of [...waiting, ...delayed]) {
-    if (job.timestamp < oneHourAgo) {
+    if (job.timestamp < oneDayAgo) {
       try {
         await job.remove();
         oldJobsCleaned++;
@@ -55,7 +55,7 @@ try {
     }
   }
   
-  console.log(`🎉 Removed ${oldJobsCleaned} old jobs`);
+  console.log(`🎉 Removed ${oldJobsCleaned} jobs older than 24 hours`);
   
 } catch (error) {
   console.error('Cleanup failed:', error.message);
