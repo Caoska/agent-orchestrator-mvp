@@ -1354,10 +1354,10 @@ server = app.listen(PORT, async () => {
   }
   
   if (!fs.existsSync(cleanupFlagFile)) {
-    logger.info('Running one-time emergency Redis cleanup...');
+    logger.info('Running comprehensive Redis cleanup...');
     try {
       const { spawn } = await import('child_process');
-      const cleanup = spawn('node', ['emergency-redis-cleanup.js'], { 
+      const cleanup = spawn('node', ['comprehensive-redis-cleanup.js'], { 
         stdio: 'inherit',
         cwd: process.cwd()
       });
