@@ -1331,7 +1331,27 @@ server = app.listen(PORT, async () => {
   
   // Run emergency Redis cleanup once (only if flag file doesn't exist)
   const cleanupFlagFile = '/tmp/redis-cleanup-done';
+  const analysisFlagFile = '/tmp/redis-analysis-done';
   const fs = await import('fs');
+  
+  // Run analysis first if not done
+  if (!fs.existsSync(analysisFlagFile)) {
+    logger.info('Running Redis analysis...');
+    try {
+      const { spawn } = await import('child_process');
+      const analysis = spawn('node', ['redis-analysis.js'], { 
+        stdio: 'inherit',
+        cwd: process.cwd()
+      });
+      
+      analysis.on('close', (code) => {
+        fs.writeFileSync(analysisFlagFile, 'analysis completed');
+        logger.info('Redis analysis completed', { exitCode: code });
+      });
+    } catch (error) {
+      logger.error('Failed to start Redis analysis', { error: error.message });
+    }
+  }
   
   if (!fs.existsSync(cleanupFlagFile)) {
     logger.info('Running one-time emergency Redis cleanup...');
