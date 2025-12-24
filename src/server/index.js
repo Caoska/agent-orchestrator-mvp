@@ -1329,6 +1329,32 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 server = app.listen(PORT, async () => {
   logger.info('Agent Orchestrator API started', { port: PORT });
   
+  // One-time Redis flush (since we have 0 customers and growing Redis usage)
+  const flushFlagFile = '/tmp/redis-flushed';
+  const fs = await import('fs');
+  
+  if (!fs.existsSync(flushFlagFile)) {
+    logger.info('Running one-time Redis flush (0 customers, growing usage)...');
+    try {
+      const { spawn } = await import('child_process');
+      const flush = spawn('node', ['redis-flush.js'], { 
+        stdio: 'inherit',
+        cwd: process.cwd()
+      });
+      
+      flush.on('close', (code) => {
+        if (code === 0) {
+          fs.writeFileSync(flushFlagFile, 'flushed');
+          logger.info('Redis flush completed successfully');
+        } else {
+          logger.error('Redis flush failed', { exitCode: code });
+        }
+      });
+    } catch (error) {
+      logger.error('Failed to start Redis flush', { error: error.message });
+    }
+  }
+  
   // Initialize scheduled jobs
   try {
     const { initializeMonthlyReset, initializeOrphanedJobCleanup } = await import('../../lib/scheduler.js');
