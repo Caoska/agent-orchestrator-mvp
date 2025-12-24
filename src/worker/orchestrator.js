@@ -227,10 +227,16 @@ const orchestrator = new Worker(
     if (job.name === 'orphaned_cleanup') {
       console.log('Running orphaned job cleanup...');
       try {
-        const { cleanupAllOrphanedJobs } = await import('../../lib/scheduler.js');
-        const cleaned = await cleanupAllOrphanedJobs();
-        console.log(`Orphaned cleanup completed: ${cleaned} jobs cleaned`);
-        return { cleaned };
+        const { cleanupAllOrphanedJobs, processScheduleCleanupQueue } = await import('../../lib/scheduler.js');
+        
+        // Process cleanup queue first (from cascade deletes)
+        const queueProcessed = await processScheduleCleanupQueue();
+        
+        // Then run general orphaned job cleanup
+        const orphansFound = await cleanupAllOrphanedJobs();
+        
+        console.log(`Orphaned cleanup completed: ${queueProcessed} queue items processed, ${orphansFound} orphans found`);
+        return { queueProcessed, orphansFound };
       } catch (error) {
         console.error('Orphaned cleanup failed:', error.message);
         throw error;
