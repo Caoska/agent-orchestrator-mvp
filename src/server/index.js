@@ -1329,55 +1329,14 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 server = app.listen(PORT, async () => {
   logger.info('Agent Orchestrator API started', { port: PORT });
   
-  // Run emergency Redis cleanup once (only if flag file doesn't exist)
-  const cleanupFlagFile = '/tmp/redis-cleanup-done';
-  const analysisFlagFile = '/tmp/redis-analysis-done';
-  const fs = await import('fs');
-  
-  // Run analysis first if not done
-  if (!fs.existsSync(analysisFlagFile)) {
-    logger.info('Running Redis analysis...');
-    try {
-      const { spawn } = await import('child_process');
-      const analysis = spawn('node', ['redis-analysis.js'], { 
-        stdio: 'inherit',
-        cwd: process.cwd()
-      });
-      
-      analysis.on('close', (code) => {
-        fs.writeFileSync(analysisFlagFile, 'analysis completed');
-        logger.info('Redis analysis completed', { exitCode: code });
-      });
-    } catch (error) {
-      logger.error('Failed to start Redis analysis', { error: error.message });
-    }
-  }
-  
-  if (!fs.existsSync(cleanupFlagFile)) {
-    logger.info('Running comprehensive Redis cleanup...');
-    try {
-      const { spawn } = await import('child_process');
-      const cleanup = spawn('node', ['comprehensive-redis-cleanup.js'], { 
-        stdio: 'inherit',
-        cwd: process.cwd()
-      });
-      
-      cleanup.on('close', (code) => {
-        if (code === 0) {
-          fs.writeFileSync(cleanupFlagFile, 'cleanup completed');
-          logger.info('Emergency Redis cleanup completed successfully');
-        } else {
-          logger.error('Emergency Redis cleanup failed', { exitCode: code });
-        }
-      });
-    } catch (error) {
-      logger.error('Failed to start emergency Redis cleanup', { error: error.message });
-    }
-  }
-  
-  // Initialize monthly usage reset schedule
+  // Initialize scheduled jobs
   try {
     const { initializeMonthlyReset, initializeOrphanedJobCleanup } = await import('../../lib/scheduler.js');
+    await initializeMonthlyReset();
+    await initializeOrphanedJobCleanup();
+  } catch (error) {
+    logger.error('Failed to initialize scheduled jobs', { error: error.message });
+  }
     await initializeMonthlyReset();
     await initializeOrphanedJobCleanup();
   } catch (error) {
