@@ -945,8 +945,10 @@ app.post("/v1/runs", requireApiKey, requireWorkspace, rateLimit(60000, 100), asy
 
   // Store in Redis for worker access
   await connection.set(`run:${run_id}`, JSON.stringify(run));
+  console.log(`🔍 REDIS MONITOR: Stored run data - run:${run_id}, size: ${JSON.stringify(run).length} bytes`);
 
   await runQueue.add("run", { run_id }, { removeOnComplete: true, removeOnFail: true });
+  console.log(`🔍 REDIS MONITOR: Added job to queue - run_id: ${run_id}, workspace: ${req.workspace.workspace_id}`);
   res.json({ run_id, status: "queued" });
 });
 
@@ -1363,6 +1365,24 @@ server = app.listen(PORT, async () => {
   } catch (error) {
     logger.error('Failed to initialize scheduled jobs', { error: error.message });
   }
+
+  // Start Redis monitoring (every 5 minutes)
+  setInterval(async () => {
+    try {
+      const IORedis = (await import('ioredis')).default;
+      const monitorConnection = new IORedis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
+      const keys = await monitorConnection.keys('*');
+      await monitorConnection.quit();
+      
+      console.log(`🔍 REDIS MONITOR: Current key count: ${keys.length} keys`);
+      
+      if (keys.length > 1000) {
+        console.warn(`⚠️  REDIS ALERT: High key count detected: ${keys.length} keys`);
+      }
+    } catch (error) {
+      console.error('Redis monitoring failed:', error.message);
+    }
+  }, 5 * 60 * 1000); // Every 5 minutes
     await initializeMonthlyReset();
     await initializeOrphanedJobCleanup();
   } catch (error) {
