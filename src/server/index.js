@@ -1348,6 +1348,15 @@ server = app.listen(PORT, async () => {
         if (code === 0) {
           fs.writeFileSync(flushFlagFile, 'flushed');
           logger.info('Redis flush completed successfully');
+          
+          // Immediately check what gets added after flush
+          setTimeout(() => {
+            const check = spawn('node', ['immediate-redis-check.js'], { 
+              stdio: 'inherit',
+              cwd: process.cwd()
+            });
+          }, 2000); // Wait 2 seconds after flush
+          
         } else {
           logger.error('Redis flush failed', { exitCode: code });
         }
