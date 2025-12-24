@@ -1329,6 +1329,32 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 server = app.listen(PORT, async () => {
   logger.info('Agent Orchestrator API started', { port: PORT });
   
+  // Run emergency Redis cleanup once (only if flag file doesn't exist)
+  const cleanupFlagFile = '/tmp/redis-cleanup-done';
+  const fs = await import('fs');
+  
+  if (!fs.existsSync(cleanupFlagFile)) {
+    logger.info('Running one-time emergency Redis cleanup...');
+    try {
+      const { spawn } = await import('child_process');
+      const cleanup = spawn('node', ['emergency-redis-cleanup.js'], { 
+        stdio: 'inherit',
+        cwd: process.cwd()
+      });
+      
+      cleanup.on('close', (code) => {
+        if (code === 0) {
+          fs.writeFileSync(cleanupFlagFile, 'cleanup completed');
+          logger.info('Emergency Redis cleanup completed successfully');
+        } else {
+          logger.error('Emergency Redis cleanup failed', { exitCode: code });
+        }
+      });
+    } catch (error) {
+      logger.error('Failed to start emergency Redis cleanup', { error: error.message });
+    }
+  }
+  
   // Initialize monthly usage reset schedule
   try {
     const { initializeMonthlyReset, initializeOrphanedJobCleanup } = await import('../../lib/scheduler.js');
