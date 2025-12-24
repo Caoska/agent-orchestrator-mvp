@@ -1383,9 +1383,4 @@ server = app.listen(PORT, async () => {
       console.error('Redis monitoring failed:', error.message);
     }
   }, 5 * 60 * 1000); // Every 5 minutes
-    await initializeMonthlyReset();
-    await initializeOrphanedJobCleanup();
-  } catch (error) {
-    logger.error('Failed to initialize scheduled jobs', { error: error.message });
-  }
 });
