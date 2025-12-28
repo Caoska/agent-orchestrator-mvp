@@ -13,7 +13,7 @@
         "test": "node tests/test-api-complete.js",
         "test-parallel": "node tests/test-parallel.js",
         "test-parallel-errors": "node tests/test-parallel-errors.js",
-        "clear-queues": "node clear-queues.js"
+        "clear-queues": "node scripts/clear-queues.js"
     },
     "dependencies": {
         "bcrypt": "^6.0.0",

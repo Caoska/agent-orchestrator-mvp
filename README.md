@@ -1,12 +1,12 @@
-# SiloWorker - API-First Automation Platform
+# SiloWorker - Reliable Backend Job Processing
 
-> **Database queries, complex conditionals, and 80% cost savings with BYOC pricing**
+> **Send a follow-up email 30 minutes after checkout — exactly once — even if your servers restart.**
 
-SiloWorker is a production-ready workflow automation platform that goes beyond Zapier's limitations. Build workflows with direct database access, complex conditional logic, and bring-your-own-credentials (BYOC) for massive cost savings.
+SiloWorker handles delayed jobs, retries, and long-running tasks without you building your own worker system. If you've outgrown cron jobs, background tasks, or Zapier, SiloWorker runs your jobs reliably and resumes exactly where they failed.
 
-[![API Documentation](https://img.shields.io/badge/API-Documentation-blue)](https://agent-orchestrator-mvp-production.up.railway.app/docs)
-[![Features](https://img.shields.io/badge/Features-Examples-green)](https://agent-orchestrator-mvp-production.up.railway.app/features)
-[![Pricing Calculator](https://img.shields.io/badge/BYOC-Savings%20Calculator-orange)](https://agent-orchestrator-mvp-production.up.railway.app/pricing-calculator)
+[![API Documentation](https://img.shields.io/badge/API-Documentation-blue)](https://api.siloworker.dev/docs)
+[![Features](https://img.shields.io/badge/Features-Examples-green)](https://siloworker.dev/features)
+[![Pricing Calculator](https://img.shields.io/badge/BYOC-Savings%20Calculator-orange)](https://siloworker.dev/pricing-calculator)
 
 ## 🎯 Why SiloWorker vs Zapier?
 
@@ -226,14 +226,14 @@ ELSE assign_to_standard_queue
 
 ### 1. Sign Up & Get API Key
 ```bash
-curl -X POST https://agent-orchestrator-mvp-production.up.railway.app/v1/auth/signup \
+curl -X POST https://api.siloworker.dev/v1/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"email": "you@company.com", "password": "secure123"}'
 ```
 
 ### 2. Create Your First Workflow
 ```bash
-curl -X POST https://agent-orchestrator-mvp-production.up.railway.app/v1/agents \
+curl -X POST https://api.siloworker.dev/v1/agents \
   -H "Authorization: Bearer sk_live_your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -260,7 +260,7 @@ curl -X POST https://agent-orchestrator-mvp-production.up.railway.app/v1/agents 
 
 ### 3. Trigger Workflow
 ```bash
-curl -X POST https://agent-orchestrator-mvp-production.up.railway.app/v1/agents/{agent_id}/run \
+curl -X POST https://api.siloworker.dev/v1/agents/{agent_id}/run \
   -H "Authorization: Bearer sk_live_your_api_key" \
   -d '{"email": "new@user.com"}'
 ```
@@ -322,11 +322,11 @@ npm test
 
 ## 🔗 Resources
 
-- 📖 **[API Documentation](https://agent-orchestrator-mvp-production.up.railway.app/docs)** - Interactive Swagger UI
-- 🌟 **[Features & Examples](https://agent-orchestrator-mvp-production.up.railway.app/features)** - See all 9 tools in action
-- 🔄 **[Migration Guide](https://agent-orchestrator-mvp-production.up.railway.app/migrate-from-zapier)** - Step-by-step Zapier migration
-- 💰 **[Pricing Calculator](https://agent-orchestrator-mvp-production.up.railway.app/pricing-calculator)** - Calculate BYOC savings
-- 💵 **[Pricing](https://agent-orchestrator-mvp-production.up.railway.app/pricing)** - Transparent pricing tiers
+- 📖 **[API Documentation](https://api.siloworker.dev/docs)** - Interactive Swagger UI
+- 🌟 **[Features & Examples](https://siloworker.dev/features)** - See all 9 tools in action
+- 🔄 **[Migration Guide](https://siloworker.dev/migrate-from-zapier)** - Step-by-step Zapier migration
+- 💰 **[Pricing Calculator](https://siloworker.dev/pricing-calculator)** - Calculate BYOC savings
+- 💵 **[Pricing](https://siloworker.dev/pricing)** - Transparent pricing tiers
 - 🚀 **[Try SiloWorker](https://siloworker.dev)** - Get started with free account
 
 ## 🤝 Contributing
