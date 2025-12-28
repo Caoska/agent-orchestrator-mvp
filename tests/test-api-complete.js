@@ -1110,10 +1110,11 @@ await test('Create failing agent for resume test', async () => {
       },
       {
         id: 'step2',
-        type: 'transform',
+        type: 'http',
         config: {
           name: 'Failing Step',
-          code: 'throw new Error("Intentional test failure");'
+          url: 'https://nonexistent-domain-for-testing-12345.com/fail',
+          method: 'GET'
         }
       }
     ],
