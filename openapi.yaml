@@ -596,6 +596,138 @@ paths:
               schema:
                 $ref: '#/components/schemas/Template'
 
+  /v1/tools:
+    get:
+      tags: [Tools]
+      summary: List available tool types
+      responses:
+        '200':
+          description: List of available tools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tools:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+
+  /v1/triggers:
+    get:
+      tags: [Triggers]
+      summary: List available trigger types
+      responses:
+        '200':
+          description: List of available triggers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  triggers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+
+  /v1/runs/{id}/resume:
+    post:
+      tags: [Runs]
+      summary: Resume a failed run
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from_step:
+                  type: string
+                  description: Optional step ID to resume from
+      responses:
+        '200':
+          description: Run resumed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  run_id:
+                    type: string
+                  message:
+                    type: string
+                  original_run_id:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/runs/bulk-resume:
+    post:
+      tags: [Runs]
+      summary: Bulk resume failed runs
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                run_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: Specific run IDs to resume
+                agent_id:
+                  type: string
+                  description: Resume all failed runs for this agent
+                status_filter:
+                  type: string
+                  default: failed
+                  description: Status of runs to resume
+      responses:
+        '200':
+          description: Bulk resume completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resumed_count:
+                    type: integer
+                  resumed_runs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        new_run_id:
+                          type: string
+                        original_run_id:
+                          type: string
+
   /v1/checkout:
     post:
       tags: [Billing]

@@ -366,6 +366,7 @@ async function requireWorkspace(req, res, next) {
 
 const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
 const runQueue = new Queue(QUEUE_NAME, { connection });
+const orchestratorQueue = new Queue('runs', { connection });
 
 // Auth endpoints
 app.post("/v1/auth/signup", async (req, res) => {
@@ -1111,6 +1112,186 @@ app.get("/v1/templates/:id", (req, res) => {
   const template = getTemplate(req.params.id);
   if (!template) return res.status(404).json({ error: "template not found" });
   res.json(template);
+});
+
+// List available tools
+app.get("/v1/tools", (req, res) => {
+  const availableTools = [
+    { type: 'http', name: 'HTTP Request', description: 'Make HTTP API calls' },
+    { type: 'sendgrid', name: 'SendGrid Email', description: 'Send emails via SendGrid' },
+    { type: 'twilio', name: 'Twilio SMS', description: 'Send SMS via Twilio' },
+    { type: 'database', name: 'Database Query', description: 'Execute SQL queries' },
+    { type: 'llm', name: 'LLM', description: 'OpenAI/Anthropic language models' },
+    { type: 'conditional', name: 'Conditional Logic', description: 'If/then/else logic' },
+    { type: 'transform', name: 'Transform Data', description: 'JavaScript data transformation' },
+    { type: 'webhook', name: 'Webhook', description: 'Send webhook requests' },
+    { type: 'delay', name: 'Delay', description: 'Wait for specified time' }
+  ];
+  res.json({ tools: availableTools });
+});
+
+// List available triggers
+app.get("/v1/triggers", (req, res) => {
+  const availableTriggers = [
+    { type: 'manual', name: 'Manual', description: 'Triggered via API call' },
+    { type: 'webhook', name: 'Webhook', description: 'Triggered by incoming webhook' },
+    { type: 'schedule', name: 'Schedule', description: 'Triggered by cron schedule' },
+    { type: 'email', name: 'Email', description: 'Triggered by incoming email' },
+    { type: 'sms', name: 'SMS', description: 'Triggered by incoming SMS' }
+  ];
+  res.json({ triggers: availableTriggers });
+});
+
+// Resume/redrive a failed run
+app.post("/v1/runs/:id/resume", requireApiKey, requireWorkspace, async (req, res) => {
+  try {
+    const { from_step } = req.body;
+    const originalRun = await data.getRun(req.params.id);
+    
+    if (!originalRun) {
+      return res.status(404).json({ error: "run not found" });
+    }
+    
+    if (originalRun.workspace_id !== req.workspace.workspace_id) {
+      return res.status(403).json({ error: "access denied" });
+    }
+    
+    if (originalRun.status !== 'failed') {
+      return res.status(400).json({ error: "can only resume failed runs" });
+    }
+    
+    // Get the agent to resume with
+    const agent = await data.getAgent(originalRun.agent_id);
+    if (!agent) {
+      return res.status(404).json({ error: "agent not found" });
+    }
+    
+    // Create new run with resume context
+    const newRunId = "run_" + uuidv4();
+    const resumeContext = {
+      ...originalRun.input,
+      _resume: {
+        original_run_id: originalRun.run_id,
+        from_step,
+        completed_steps: originalRun.results?.steps?.filter(s => s.status === 'success') || []
+      }
+    };
+    
+    const newRun = {
+      run_id: newRunId,
+      agent_id: originalRun.agent_id,
+      project_id: originalRun.project_id,
+      workspace_id: originalRun.workspace_id,
+      input: resumeContext,
+      status: "running",
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString()
+    };
+    
+    await data.createRun(newRun);
+    
+    // Queue the resume job
+    await orchestratorQueue.add('execute-agent', {
+      runId: newRunId,
+      agentId: originalRun.agent_id,
+      input: resumeContext,
+      isResume: true
+    });
+    
+    res.json({ 
+      run_id: newRunId, 
+      message: "Run resumed",
+      original_run_id: originalRun.run_id 
+    });
+    
+  } catch (error) {
+    console.error("Resume run error:", error);
+    res.status(500).json({ error: "failed to resume run" });
+  }
+});
+
+// Bulk redrive failed runs
+app.post("/v1/runs/bulk-resume", requireApiKey, requireWorkspace, async (req, res) => {
+  try {
+    const { run_ids, agent_id, status_filter = 'failed' } = req.body;
+    
+    if (!run_ids && !agent_id) {
+      return res.status(400).json({ error: "must provide run_ids or agent_id" });
+    }
+    
+    let runsToResume = [];
+    
+    if (run_ids) {
+      // Resume specific runs
+      for (const runId of run_ids) {
+        const run = await data.getRun(runId);
+        if (run && run.workspace_id === req.workspace.workspace_id && run.status === status_filter) {
+          runsToResume.push(run);
+        }
+      }
+    } else if (agent_id) {
+      // Resume all failed runs for an agent
+      const allRuns = await data.listRuns(req.workspace.workspace_id);
+      runsToResume = allRuns.filter(run => 
+        run.agent_id === agent_id && run.status === status_filter
+      );
+    }
+    
+    const resumedRuns = [];
+    
+    for (const originalRun of runsToResume) {
+      try {
+        const agent = await data.getAgent(originalRun.agent_id);
+        if (!agent) continue;
+        
+        const newRunId = "run_" + uuidv4();
+        const resumeContext = {
+          ...originalRun.input,
+          _resume: {
+            original_run_id: originalRun.run_id,
+            completed_steps: originalRun.results?.steps?.filter(s => s.status === 'success') || []
+          }
+        };
+        
+        const newRun = {
+          run_id: newRunId,
+          agent_id: originalRun.agent_id,
+          project_id: originalRun.project_id,
+          workspace_id: originalRun.workspace_id,
+          input: resumeContext,
+          status: "running",
+          created_at: new Date().toISOString(),
+          started_at: new Date().toISOString()
+        };
+        
+        await data.createRun(newRun);
+        
+        await orchestratorQueue.add('execute-agent', {
+          runId: newRunId,
+          agentId: originalRun.agent_id,
+          input: resumeContext,
+          isResume: true
+        });
+        
+        resumedRuns.push({
+          new_run_id: newRunId,
+          original_run_id: originalRun.run_id
+        });
+        
+      } catch (error) {
+        console.error(`Failed to resume run ${originalRun.run_id}:`, error);
+      }
+    }
+    
+    res.json({ 
+      resumed_count: resumedRuns.length,
+      resumed_runs: resumedRuns
+    });
+    
+  } catch (error) {
+    console.error("Bulk resume error:", error);
+    res.status(500).json({ error: "failed to bulk resume runs" });
+  }
 });
 
 // Stripe endpoints

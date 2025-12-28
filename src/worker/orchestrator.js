@@ -99,6 +99,41 @@ async function executeWorkflow(workflow, initialContext, runId, stepLogs) {
   const context = { ...initialContext };
   const nodeOutputs = {};
   const completedNodes = new Set();
+  
+  // Handle resume logic
+  if (context._resume) {
+    console.log(`Resuming run from original: ${context._resume.original_run_id}`);
+    
+    // Restore outputs from completed steps
+    for (const completedStep of context._resume.completed_steps) {
+      nodeOutputs[completedStep.node_id] = completedStep.output;
+      completedNodes.add(completedStep.node_id);
+      
+      // Add to step logs for continuity
+      stepLogs.push({
+        ...completedStep,
+        resumed: true,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log(`✓ Restored completed step: ${completedStep.node_id} (${completedStep.type})`);
+    }
+    
+    // If from_step specified, only resume from that step onwards
+    if (context._resume.from_step) {
+      // Remove the from_step and its dependencies from completed set
+      // so they get re-executed
+      const fromStepNode = nodes.find(n => n.id === context._resume.from_step);
+      if (fromStepNode) {
+        completedNodes.delete(context._resume.from_step);
+        delete nodeOutputs[context._resume.from_step];
+        console.log(`Will re-execute from step: ${context._resume.from_step}`);
+      }
+    }
+    
+    // Clean up resume context to avoid passing to tools
+    delete context._resume;
+  }
   const MAX_ITERATIONS = 1000;
   let iterations = 0;
   
