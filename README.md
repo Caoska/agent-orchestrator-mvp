@@ -53,6 +53,31 @@ HTTP ══╤══ Transform A ══╗
 ✓ Zero configuration - just connect the nodes
 ```
 
+## 🔄 Resume from Failure
+
+Unlike other platforms, SiloWorker can resume failed workflows from the exact point of failure:
+
+```bash
+# Resume a failed run from where it stopped
+curl -X POST https://api.siloworker.dev/v1/runs/run_123/resume \
+  -H "Authorization: Bearer sk_live_your_api_key"
+
+# Resume from a specific step (useful if dependencies need re-execution)
+curl -X POST https://api.siloworker.dev/v1/runs/run_123/resume \
+  -H "Authorization: Bearer sk_live_your_api_key" \
+  -d '{"from_step": "step_14"}'
+
+# Bulk resume all failed runs for an agent
+curl -X POST https://api.siloworker.dev/v1/runs/bulk-resume \
+  -H "Authorization: Bearer sk_live_your_api_key" \
+  -d '{"agent_id": "agent_456"}'
+```
+
+**Example**: 16-step workflow fails at step 15
+- Steps 1-14: ✅ Completed (outputs preserved)
+- Step 15: ❌ Failed → Resume skips 1-14, re-runs 15-16
+- **Result**: No wasted computation, fast recovery
+
 ## 🛠️ 9 Built-in Tools
 
 ### 🌐 HTTP Tool
