@@ -930,6 +930,7 @@ app.post("/v1/runs", requireApiKey, requireWorkspace, rateLimit(60000, 100), asy
     run_id, 
     agent_id, 
     project_id: agent.project_id, // Use agent's project_id
+    workspace_id: req.workspace.workspace_id, // Add workspace_id for resume functionality
     input, 
     webhook: webhook || null,
     trigger_type, 
