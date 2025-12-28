@@ -1065,6 +1065,126 @@ await test('Clear Redis repeatable jobs', async () => {
   }
 });
 
+// New Endpoint Tests (before deleting workspace)
+await test('List tools', async () => {
+  const data = await apiCall('GET', '/v1/tools');
+  if (!data.tools || !Array.isArray(data.tools)) throw new Error('Tools not returned as array');
+  if (data.tools.length !== 9) throw new Error(`Expected 9 tools, got ${data.tools.length}`);
+  
+  const expectedTools = ['http', 'sendgrid', 'twilio', 'database', 'llm', 'conditional', 'transform', 'webhook', 'delay'];
+  const foundTools = data.tools.map(t => t.type);
+  const missingTools = expectedTools.filter(tool => !foundTools.includes(tool));
+  
+  if (missingTools.length > 0) {
+    throw new Error(`Missing tools: ${missingTools.join(', ')}`);
+  }
+});
+
+await test('List triggers', async () => {
+  const data = await apiCall('GET', '/v1/triggers');
+  if (!data.triggers || !Array.isArray(data.triggers)) throw new Error('Triggers not returned as array');
+  if (data.triggers.length !== 5) throw new Error(`Expected 5 triggers, got ${data.triggers.length}`);
+  
+  const expectedTriggers = ['manual', 'webhook', 'schedule', 'email', 'sms'];
+  const foundTriggers = data.triggers.map(t => t.type);
+  const missingTriggers = expectedTriggers.filter(trigger => !foundTriggers.includes(trigger));
+  
+  if (missingTriggers.length > 0) {
+    throw new Error(`Missing triggers: ${missingTriggers.join(', ')}`);
+  }
+});
+
+// Test resume functionality with a failing agent
+await test('Create failing agent for resume test', async () => {
+  const data = await apiCall('POST', '/v1/agents', {
+    project_id: projectId,
+    name: 'Resume Test Agent',
+    nodes: [
+      {
+        id: 'step1',
+        type: 'transform',
+        config: {
+          name: 'Success Step',
+          code: 'return { success: true, step: 1 };'
+        }
+      },
+      {
+        id: 'step2',
+        type: 'transform',
+        config: {
+          name: 'Failing Step',
+          code: 'throw new Error("Intentional test failure");'
+        }
+      }
+    ],
+    connections: [
+      { from: 'step1', to: 'step2' }
+    ]
+  });
+  
+  if (!data.agent_id) throw new Error('No agent_id returned');
+  agentIds.resumeTest = data.agent_id;
+});
+
+await test('Run failing agent', async () => {
+  const data = await apiCall('POST', '/v1/runs', {
+    agent_id: agentIds.resumeTest,
+    project_id: projectId,
+    input: { test: true },
+    run_async: false
+  });
+  
+  if (!data.run_id) throw new Error('No run_id returned');
+  runIds.push(data.run_id);
+  
+  // Wait for run to complete (and fail)
+  let attempts = 0;
+  let runResult;
+  while (attempts < 30) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    runResult = await apiCall('GET', `/v1/runs/${data.run_id}`);
+    
+    if (runResult.status === 'completed' || runResult.status === 'failed') {
+      break;
+    }
+    attempts++;
+  }
+  
+  if (runResult.status !== 'failed') {
+    throw new Error(`Expected run to fail, got status: ${runResult.status}`);
+  }
+  
+  // Verify step 1 succeeded and step 2 failed
+  const steps = runResult.results?.steps || [];
+  if (steps.length !== 2) throw new Error(`Expected 2 steps, got ${steps.length}`);
+  if (steps[0].status !== 'success') throw new Error('Step 1 should have succeeded');
+  if (steps[1].status !== 'failed') throw new Error('Step 2 should have failed');
+});
+
+await test('Resume failed run', async () => {
+  const failedRunId = runIds[runIds.length - 1];
+  const data = await apiCall('POST', `/v1/runs/${failedRunId}/resume`);
+  
+  if (!data.run_id) throw new Error('No new run_id returned');
+  if (data.original_run_id !== failedRunId) throw new Error('Original run_id mismatch');
+  if (!data.message) throw new Error('No message returned');
+  
+  runIds.push(data.run_id);
+});
+
+await test('Bulk resume failed runs', async () => {
+  const data = await apiCall('POST', '/v1/runs/bulk-resume', {
+    agent_id: agentIds.resumeTest,
+    status_filter: 'failed'
+  });
+  
+  if (typeof data.resumed_count !== 'number') throw new Error('No resumed_count returned');
+  if (!Array.isArray(data.resumed_runs)) throw new Error('resumed_runs not an array');
+  
+  // Should have resumed at least 1 run
+  if (data.resumed_count === 0) throw new Error('No runs were resumed');
+});
+
 await test('Delete workspace', async () => {
   await apiCall('DELETE', '/v1/workspace');
 });
