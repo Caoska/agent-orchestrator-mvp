@@ -1153,7 +1153,7 @@ app.post("/v1/runs/:id/resume", requireApiKey, requireWorkspace, async (req, res
       return res.status(404).json({ error: "run not found" });
     }
     
-    if (originalRun.workspace_id !== req.workspace.workspace_id) {
+    if (originalRun.workspace_id && originalRun.workspace_id !== req.workspace.workspace_id) {
       return res.status(403).json({ error: "access denied" });
     }
     
