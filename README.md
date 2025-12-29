@@ -249,45 +249,40 @@ ELSE assign_to_standard_queue
 
 ## 🚀 Quick Start
 
-### 1. Sign Up & Get API Key
+### Option 1: Web Interface
+1. **[Sign up at siloworker.dev](https://siloworker.dev)** - Visual workflow builder
+2. **Create workflows** - Drag-and-drop interface  
+3. **Monitor runs** - Real-time dashboard
+
+### Option 2: CLI (Power Users)
+```bash
+# Install CLI
+npm install -g siloworker-cli
+
+# Authenticate
+siloworker auth login
+
+# Create project
+siloworker project create -n "My Project"
+
+# Create agent from config file
+siloworker agent create -n "User Onboarding" -f workflow.json
+
+# Run workflow
+siloworker run start agent_xxx -d '{"email": "new@user.com"}'
+
+# Monitor status
+siloworker run status run_xxx
+
+# Bulk operations
+siloworker run resume-all-failed
+```
+
+### Option 3: Direct API
 ```bash
 curl -X POST https://api.siloworker.dev/v1/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"email": "you@company.com", "password": "secure123"}'
-```
-
-### 2. Create Your First Workflow
-```bash
-curl -X POST https://api.siloworker.dev/v1/agents \
-  -H "Authorization: Bearer sk_live_your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "User Onboarding",
-    "tools": [
-      {
-        "type": "database",
-        "config": {
-          "connection_string": "postgresql://...",
-          "query": "SELECT * FROM users WHERE email = {{input.email}}"
-        }
-      },
-      {
-        "type": "sendgrid",
-        "config": {
-          "template_id": "d-abc123",
-          "to": "{{input.email}}",
-          "dynamic_template_data": {"name": "{{user.name}}"}
-        }
-      }
-    ]
-  }'
-```
-
-### 3. Trigger Workflow
-```bash
-curl -X POST https://api.siloworker.dev/v1/agents/{agent_id}/run \
-  -H "Authorization: Bearer sk_live_your_api_key" \
-  -d '{"email": "new@user.com"}'
 ```
 
 ## 🔧 Local Development
@@ -348,6 +343,7 @@ npm test
 ## 🔗 Resources
 
 - 📖 **[API Documentation](https://api.siloworker.dev/docs)** - Interactive Swagger UI
+- ⚡ **[CLI Documentation](https://siloworker.dev/cli)** - Command-line interface for power users
 - 🌟 **[Features & Examples](https://siloworker.dev/features)** - See all 9 tools in action
 - 🔄 **[Migration Guide](https://siloworker.dev/migrate-from-zapier)** - Step-by-step Zapier migration
 - 💰 **[Pricing Calculator](https://siloworker.dev/pricing-calculator)** - Calculate BYOC savings
